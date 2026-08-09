@@ -355,7 +355,7 @@ async function openPage(name){
   const r=await fetch(`/api/pages?page=${encodeURIComponent(name)}&mode=draft&t=${Date.now()}`);
   let html=await r.text();
   // srcdoc iframes inherit /admin/ as their base URL — repoint relative assets at the site root
-  html=html.replace(/<head([^>]*)>/i,'<head$1><base href="/">');
+  html=html.replace(/<head([^>]*)>/i,`<head$1><base href="${location.origin}/">`);
   $('#frame').srcdoc=html.replace('</body>','<script src="/assets/editor.js"><\/script></body>');
 }
 $('#frame').addEventListener('load',()=>$('#loading').classList.remove('on'));
