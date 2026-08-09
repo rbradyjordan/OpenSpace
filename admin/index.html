@@ -353,7 +353,9 @@ async function openPage(name){
   document.querySelectorAll('.pcard').forEach(b=>b.classList.toggle('on',b.querySelector('.fname').textContent===name.replace('.html','')));
   $('#loading').classList.add('on');
   const r=await fetch(`/api/pages?page=${encodeURIComponent(name)}&mode=draft&t=${Date.now()}`);
-  const html=await r.text();
+  let html=await r.text();
+  // srcdoc iframes inherit /admin/ as their base URL — repoint relative assets at the site root
+  html=html.replace(/<head([^>]*)>/i,'<head$1><base href="/">');
   $('#frame').srcdoc=html.replace('</body>','<script src="/assets/editor.js"><\/script></body>');
 }
 $('#frame').addEventListener('load',()=>$('#loading').classList.remove('on'));
