@@ -28,6 +28,14 @@
     bold: '<b style="font-size:13px">B</b>',
     italic: '<i style="font-size:13px;font-family:serif">I</i>',
     under: '<u style="font-size:13px">U</u>',
+    copy: I('M8 8h11v11H8z M5 16H4V4h12v1'),
+    paste: I('M9 4h6v3H9z M9 5H6v15h12V5h-3'),
+    text: I('M5 6h14 M12 6v13'),
+    btnEl: I('M4 9h16v7H4z M8 12.5h8', 'stroke-width:1.6'),
+    divider: I('M4 12h16 M9 7h6 M9 17h6'),
+    spacer: I('M12 4v5 M12 15v5 M8 7l4-4 4 4 M8 17l4 4 4-4'),
+    quote: I('M7 8c-2 0-3 1.4-3 3.2C4 13.4 5.2 15 7.2 15c.4 2-1 3-2.2 3.4 M17 8c-2 0-3 1.4-3 3.2 0 2.2 1.2 3.8 3.2 3.8.4 2-1 3-2.2 3.4'),
+    chev: I('m9 6 6 6-6 6'),
   };
 
   /* ================= styles ================= */
@@ -116,6 +124,50 @@
   .ospace-keys td:last-child{text-align:right;color:var(--ospaceD)}
   .ospace-keys kbd{background:var(--ospaceP2);border:1px solid var(--ospaceL2);border-radius:5px;padding:2px 7px;font:600 10.5px Poppins;color:var(--ospaceT)}
   body.ospace-panel-open{margin-right:320px}
+
+  /* ============ v3: springy, glassy, tactile ============ */
+  @keyframes ospaceSpring{0%{opacity:0;transform:scale(.9) translateY(8px)}60%{opacity:1;transform:scale(1.02) translateY(-2px)}100%{opacity:1;transform:none}}
+  .ospace-toolbar,.ospace-sec-tools,.ospace-find,.ospace-panel{backdrop-filter:blur(16px) saturate(1.3);background:rgba(19,22,28,.88)}
+  .ospace-toolbar{animation:ospaceSpring .2s cubic-bezier(.34,1.56,.64,1)}
+  .ospace-toolbar button,.ospace-sec-tools button{transition:transform .13s cubic-bezier(.34,1.56,.64,1),background .13s}
+  .ospace-toolbar button:hover{transform:scale(1.12)}
+  .ospace-toolbar button:active,.ospace-sec-tools button:active{transform:scale(.9)}
+  .ospace-sec-tools button:hover{transform:scale(1.12)}
+  .ospace-selected{box-shadow:0 0 0 4px rgba(240,82,61,.16)}
+  .ospace-addline button{transition:transform .15s cubic-bezier(.34,1.56,.64,1),opacity .15s}
+  .ospace-addline button:hover{transform:translateY(-50%) scale(1.07)}
+
+  /* context menu */
+  .ospace-ctx{position:fixed;z-index:2147483250;min-width:224px;background:rgba(19,22,28,.92);backdrop-filter:blur(20px) saturate(1.3);border:1px solid var(--ospaceL2);border-radius:14px;padding:6px;box-shadow:0 20px 60px rgba(0,0,0,.65);font-family:Poppins;color:var(--ospaceT);animation:ospaceSpring .18s cubic-bezier(.34,1.56,.64,1)}
+  .ospace-ctx .lbl{padding:7px 11px 3px;font:600 9px Poppins;letter-spacing:.14em;text-transform:uppercase;color:var(--ospaceD)}
+  .ospace-ctx .it{position:relative;display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:9px;font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background .1s}
+  .ospace-ctx .it:hover{background:var(--ospaceL)}
+  .ospace-ctx .it svg{flex:0 0 auto;color:var(--ospaceD)}
+  .ospace-ctx .it:hover svg{color:var(--ospaceT)}
+  .ospace-ctx .it .k{margin-left:auto;color:var(--ospaceD);font-size:10px;padding-left:14px}
+  .ospace-ctx .it.danger,.ospace-ctx .it.danger svg{color:#ff7b6e}
+  .ospace-ctx .it.danger:hover{background:rgba(240,82,61,.14)}
+  .ospace-ctx .div{height:1px;background:var(--ospaceL);margin:5px 9px}
+  .ospace-ctx .sub{position:absolute;left:calc(100% - 4px);top:-7px;display:none;min-width:190px;background:rgba(19,22,28,.94);backdrop-filter:blur(20px);border:1px solid var(--ospaceL2);border-radius:12px;padding:6px;box-shadow:0 16px 50px rgba(0,0,0,.6)}
+  .ospace-ctx .it:hover>.sub{display:block;animation:ospaceSpring .16s cubic-bezier(.34,1.56,.64,1)}
+
+  /* template picker v3 — categories + live previews */
+  .ospace-cats{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .ospace-cats button{background:var(--ospaceP2);border:1px solid var(--ospaceL);color:var(--ospaceD);border-radius:20px;padding:6px 15px;font:500 11.5px Poppins;cursor:pointer;transition:all .15s cubic-bezier(.34,1.56,.64,1)}
+  .ospace-cats button:hover{color:var(--ospaceT);transform:translateY(-1px)}
+  .ospace-cats button.on{background:var(--ospaceA);border-color:var(--ospaceA);color:#fff}
+  .ospace-tpl-grid.v3{grid-template-columns:1fr 1fr}
+  .ospace-live-thumb{height:128px;overflow:hidden;position:relative;background:#000;border-bottom:1px solid var(--ospaceL)}
+  .ospace-live-thumb>div{width:1200px;transform:scale(.235);transform-origin:0 0;pointer-events:none}
+  .ospace-live-thumb::after{content:"";position:absolute;inset:0}
+  .ospace-tpl-grid button{animation:ospaceSpring .25s cubic-bezier(.34,1.56,.64,1) both}
+
+  /* element palette */
+  .ospace-elem-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .ospace-elem-grid button{background:var(--ospaceP2);border:1px solid var(--ospaceL);border-radius:13px;padding:15px 8px 12px;display:flex;flex-direction:column;align-items:center;gap:9px;color:var(--ospaceT);cursor:pointer;font:500 11px Poppins;transition:all .16s cubic-bezier(.34,1.56,.64,1)}
+  .ospace-elem-grid button:hover{border-color:var(--ospaceA);transform:translateY(-3px) scale(1.04);box-shadow:0 12px 30px rgba(0,0,0,.45)}
+  .ospace-elem-grid .ic{width:36px;height:36px;border-radius:10px;background:var(--ospaceL);display:grid;place-items:center;color:var(--ospaceB);transition:all .16s}
+  .ospace-elem-grid button:hover .ic{background:rgba(240,82,61,.18);color:var(--ospaceA)}
   `;
   doc.head.appendChild(css);
 
@@ -218,7 +270,7 @@
     if (TEXT_TAGS.includes(el.tagName) && !el.querySelector('img,video,section')) startTextEdit(el);
   });
 
-  function select(el) {
+  function select(el, withPanel = true) {
     if (el === doc.body || el === doc.documentElement) return;
     if (selected) selected.classList.remove('ospace-selected');
     selected = el;
@@ -226,7 +278,7 @@
     showBadge(el);
     showToolbar(el);
     showCrumb(el);
-    openPanelFor(el);
+    if (withPanel) openPanelFor(el);
   }
   function deselect() {
     if (selected) selected.classList.remove('ospace-selected');
@@ -235,7 +287,7 @@
   }
 
   doc.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { closeFind(); closeModals(); finishTextEdit(); deselect(); }
+    if (e.key === 'Escape') { closeCtx(); closeFind(); closeModals(); finishTextEdit(); deselect(); }
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     if (mod && e.key.toLowerCase() === 'f') { e.preventDefault(); openFind(); }
@@ -333,6 +385,7 @@
       );
       const a = el.tagName === 'A' ? el : el.closest && el.closest('a');
       if (a) bar.append(tbtn(IC.link, () => { const u = prompt('Link URL:', a.getAttribute('href') || ''); if (u !== null) { pushUndo(); a.setAttribute('href', u); } }, 'Edit link'));
+      bar.append(tbtn(IC.plus, () => openElements(el, 'after'), 'Insert element below'));
       bar.append(sep(), tbtn(IC.del, () => { pushUndo(); el.remove(); deselect(); }, 'Delete', 'danger'));
     }
     const r = el.getBoundingClientRect();
@@ -692,94 +745,295 @@
   }
   function closeModals() { doc.querySelectorAll('.ospace-modal').forEach((m) => m.remove()); }
 
-  /* ================= templates (with visual thumbs) ================= */
-  const THUMB = {
-    heading: `<div style="width:100%"><div style="height:8px;width:55%;margin:0 auto 6px;background:#3a424e;border-radius:3px"></div><div style="height:4px;width:80%;margin:0 auto 3px;background:#252a33;border-radius:2px"></div><div style="height:4px;width:70%;margin:0 auto;background:#252a33;border-radius:2px"></div></div>`,
-    split: `<div style="display:flex;gap:6px;width:100%;height:100%"><div style="flex:1"><div style="height:7px;width:80%;background:#3a424e;border-radius:3px;margin-bottom:5px"></div><div style="height:4px;background:#252a33;border-radius:2px;margin-bottom:3px"></div><div style="height:4px;width:70%;background:#252a33;border-radius:2px"></div></div><div style="flex:1;background:linear-gradient(135deg,#2b3644,#1a212b);border-radius:5px"></div></div>`,
-    image: `<div style="width:100%;height:100%;background:linear-gradient(135deg,#2b3644,#1a212b);border-radius:5px;display:grid;place-items:center;color:#5b636f">${I('M4 5h16v14H4z m3 9 3-3 3 3 4-4 3 3')}</div>`,
-    video: `<div style="width:100%;height:100%;background:linear-gradient(135deg,#33272b,#1a212b);border-radius:5px;display:grid;place-items:center;color:#f0523d">${I('M8 6v12l10-6z')}</div>`,
-    grid: `<div style="display:flex;gap:5px;width:100%;height:100%">${'<div style="flex:1;background:linear-gradient(160deg,#2b3644,#1a212b);border-radius:4px"></div>'.repeat(3)}</div>`,
-    quote: `<div style="width:100%;text-align:center"><div style="font-size:20px;color:#3a424e;line-height:1">&ldquo;</div><div style="height:4px;width:75%;margin:2px auto;background:#252a33;border-radius:2px"></div><div style="height:4px;width:60%;margin:0 auto;background:#252a33;border-radius:2px"></div></div>`,
-    cta: `<div style="width:100%;text-align:center"><div style="height:7px;width:60%;margin:0 auto 8px;background:#3a424e;border-radius:3px"></div><div style="height:14px;width:44%;margin:0 auto;background:#f0523d;border-radius:7px"></div></div>`,
-    logos: `<div style="display:flex;gap:6px;width:100%;align-items:center">${'<div style="flex:1;height:12px;background:#252a33;border-radius:3px"></div>'.repeat(4)}</div>`,
-    spacer: `<div style="width:100%;border-top:2px dashed #252a33;border-bottom:2px dashed #252a33;height:22px"></div>`,
+  /* ================= section templates (categorized, live previews) ================= */
+  const IMGS = {
+    photo1: 'https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/297236b2-dd02-4ee9-90ef-e916df0cdafb/IMG_4616.jpg?format=1500w',
+    photo2: 'https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/b425ce6e-9025-42dc-8d24-e5503289f227/848A5305.jpg?format=750w',
+    photo3: 'https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/5160908d-2941-4e6f-8b68-55161b35b0a9/848A2680.jpg?format=750w',
+    photo4: 'https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/76a7cc10-f3b2-445b-bc16-9c225bf30197/BR5_1571.jpg?format=750w',
+    logo1: 'https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/f77cd591-ecc9-40c7-a37a-cff3076636a2/logo.png?format=750w',
+    logo2: 'https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/b5f948c0-6078-4a02-94f2-1898f0a2308c/TWC%2BNetwork.png?format=750w',
+    logo3: 'https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/45e7d246-368b-47f6-ab70-be3b6d574d42/The_Atlanta_Journal-Constitution_%2804.2021%29.svg.png?format=750w',
+    logo4: 'https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/43212666-26e6-446c-945d-fdd32259650e/252115BB-4D0C-4986-9D53-31ACB3C11766.png?format=750w',
   };
   const TEMPLATES = [
-    { name: 'Heading + Text', desc: 'Centered title & paragraph', thumb: THUMB.heading, html: `
+    { cat: 'Hero', name: 'Hero — Backdrop', desc: 'Headline + button over a photo', html: `
+      <section style="position:relative;min-height:88vh;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden">
+        <img src="${IMGS.photo1}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.5)">
+        <div style="position:relative;max-width:760px;padding:3rem 6vw">
+          <h1 style="font-weight:700;font-style:italic;font-size:3.2rem;line-height:1.2;margin-bottom:1.2rem">A headline that stops the scroll.</h1>
+          <p style="font-size:1.15rem;margin-bottom:2rem">One supporting sentence that earns the click.</p>
+          <a href="#" style="display:inline-block;background:#fff;color:#000;font-weight:600;padding:.95rem 2.5rem;border-radius:8px;text-decoration:none">Get Started</a>
+        </div>
+      </section>` },
+    { cat: 'Hero', name: 'Hero — Split', desc: 'Copy left, image right', html: `
+      <section style="display:grid;grid-template-columns:1fr 1fr;align-items:center;background:#000;min-height:70vh">
+        <div style="padding:4rem 3rem 4rem 6vw">
+          <h1 style="font-weight:700;font-style:italic;font-size:2.8rem;line-height:1.2;margin-bottom:1.2rem">Your story, told powerfully.</h1>
+          <p style="margin-bottom:2rem">Explain the promise in one warm, confident sentence.</p>
+          <a href="#" style="display:inline-block;background:#f0523d;color:#fff;font-weight:600;padding:.9rem 2.2rem;border-radius:8px;text-decoration:none">Book a Shoot</a>
+        </div>
+        <img src="${IMGS.photo2}" alt="" style="width:100%;height:100%;object-fit:cover;min-height:420px">
+      </section>` },
+    { cat: 'Content', name: 'Heading + Text', desc: 'Centered title & paragraph', html: `
       <section style="padding:5rem 6vw;text-align:center;background:#000">
         <h2 style="font-weight:700;font-style:italic;font-size:2.4rem;margin-bottom:1.2rem">New Section</h2>
         <p style="max-width:640px;margin:0 auto;font-size:1.05rem">Write something compelling here.</p>
       </section>` },
-    { name: 'Text + Image', desc: 'Split copy and photo', thumb: THUMB.split, html: `
+    { cat: 'Content', name: 'Text + Image', desc: 'Split copy and photo', html: `
       <section style="display:grid;grid-template-columns:1fr 1fr;align-items:center;background:#000">
         <div style="padding:4rem 3rem 4rem 6vw">
           <h2 style="font-weight:700;font-style:italic;font-size:2.2rem;margin-bottom:1rem">Your headline</h2>
           <p>Tell the story behind the image.</p>
         </div>
-        <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/297236b2-dd02-4ee9-90ef-e916df0cdafb/IMG_4616.jpg?format=1500w" alt="" style="width:100%;height:100%;object-fit:cover;min-height:380px">
+        <img src="${IMGS.photo1}" alt="" style="width:100%;height:100%;object-fit:cover;min-height:380px">
       </section>` },
-    { name: 'Full-bleed Image', desc: 'Edge-to-edge banner', thumb: THUMB.image, html: `
+    { cat: 'Content', name: 'Big Statement', desc: 'One huge line', html: `
+      <section style="padding:7rem 6vw;text-align:center;background:#000">
+        <h2 style="font-weight:700;font-style:italic;font-size:clamp(2rem,5vw,3.6rem);max-width:900px;margin:0 auto;line-height:1.3">Make one bold claim you can back up.</h2>
+      </section>` },
+    { cat: 'Content', name: 'Stats Row', desc: 'Three proud numbers', html: `
+      <section style="padding:5rem 6vw;background:#000">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;max-width:1000px;margin:0 auto;text-align:center">
+          <div><div style="font-size:3rem;font-weight:700;font-style:italic">4+</div><div style="letter-spacing:.15em;font-size:.8rem;text-transform:uppercase;opacity:.7">Years of stories</div></div>
+          <div><div style="font-size:3rem;font-weight:700;font-style:italic">13</div><div style="letter-spacing:.15em;font-size:.8rem;text-transform:uppercase;opacity:.7">States served</div></div>
+          <div><div style="font-size:3rem;font-weight:700;font-style:italic">17+</div><div style="letter-spacing:.15em;font-size:.8rem;text-transform:uppercase;opacity:.7">Collaborators</div></div>
+        </div>
+      </section>` },
+    { cat: 'Media', name: 'Full-bleed Image', desc: 'Edge-to-edge banner', html: `
       <section style="height:70vh;overflow:hidden;background:#000">
-        <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/297236b2-dd02-4ee9-90ef-e916df0cdafb/IMG_4616.jpg?format=2500w" alt="" style="width:100%;height:100%;object-fit:cover">
+        <img src="${IMGS.photo1}" alt="" style="width:100%;height:100%;object-fit:cover">
       </section>` },
-    { name: 'Full-bleed Video', desc: 'Looping showcase', thumb: THUMB.video, html: `
+    { cat: 'Media', name: 'Full-bleed Video', desc: 'Looping showcase', html: `
       <section style="height:80vh;overflow:hidden;background:#000">
         <video autoplay muted loop playsinline src="assets/hero.mp4" style="width:100%;height:100%;object-fit:cover"></video>
       </section>` },
-    { name: 'Photo Grid', desc: 'Three photos in a row', thumb: THUMB.grid, html: `
+    { cat: 'Media', name: 'Photo Grid', desc: 'Three photos in a row', html: `
       <section style="padding:4rem 6vw;background:#000">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
-          <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/b425ce6e-9025-42dc-8d24-e5503289f227/848A5305.jpg?format=750w" alt="" style="width:100%;aspect-ratio:4/5;object-fit:cover">
-          <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/5160908d-2941-4e6f-8b68-55161b35b0a9/848A2680.jpg?format=750w" alt="" style="width:100%;aspect-ratio:4/5;object-fit:cover">
-          <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/76a7cc10-f3b2-445b-bc16-9c225bf30197/BR5_1571.jpg?format=750w" alt="" style="width:100%;aspect-ratio:4/5;object-fit:cover">
+          <img src="${IMGS.photo2}" alt="" style="width:100%;aspect-ratio:4/5;object-fit:cover">
+          <img src="${IMGS.photo3}" alt="" style="width:100%;aspect-ratio:4/5;object-fit:cover">
+          <img src="${IMGS.photo4}" alt="" style="width:100%;aspect-ratio:4/5;object-fit:cover">
         </div>
       </section>` },
-    { name: 'Testimonial', desc: 'Quote over a photo', thumb: THUMB.quote, html: `
+    { cat: 'Media', name: 'Gallery Duo', desc: 'Two wide photos', html: `
+      <section style="padding:4rem 6vw;background:#000">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <img src="${IMGS.photo3}" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover">
+          <img src="${IMGS.photo4}" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover">
+        </div>
+      </section>` },
+    { cat: 'Proof', name: 'Testimonial', desc: 'Quote over a photo', html: `
       <section style="position:relative;min-height:70vh;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden">
-        <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/fd489221-a7a5-4adf-9f98-fed3310caabc/848A5305.jpg?format=1500w" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.45)">
+        <img src="${IMGS.photo2}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.45)">
         <div style="position:relative;max-width:700px;padding:3rem 6vw">
           <div style="font-weight:700;font-style:italic;font-size:1.9rem;margin-bottom:1rem">Client Name</div>
           <p style="font-size:1.15rem;line-height:1.7">&ldquo;Add the testimonial quote here.&rdquo;</p>
         </div>
       </section>` },
-    { name: 'Call to Action', desc: 'Headline + button', thumb: THUMB.cta, html: `
+    { cat: 'Proof', name: 'Logo Row', desc: 'Clients & partners', html: `
+      <section style="padding:4rem 6vw;text-align:center;background:#000">
+        <h2 style="font-weight:700;font-style:italic;font-size:1.8rem;margin-bottom:2.5rem">Trusted By:</h2>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3rem;align-items:center;max-width:1100px;margin:0 auto">
+          <img src="${IMGS.logo1}" alt="" style="max-height:110px;width:auto;max-width:100%;margin:0 auto;object-fit:contain">
+          <img src="${IMGS.logo2}" alt="" style="max-height:110px;width:auto;max-width:100%;margin:0 auto;object-fit:contain">
+          <img src="${IMGS.logo3}" alt="" style="max-height:110px;width:auto;max-width:100%;margin:0 auto;object-fit:contain">
+          <img src="${IMGS.logo4}" alt="" style="max-height:110px;width:auto;max-width:100%;margin:0 auto;object-fit:contain">
+        </div>
+      </section>` },
+    { cat: 'CTA', name: 'Call to Action', desc: 'Headline + button', html: `
       <section style="padding:6rem 6vw;text-align:center;background:#000">
         <h2 style="font-weight:700;font-style:italic;font-size:2.4rem;margin-bottom:2rem">Ready to tell your story?</h2>
         <a href="book.html" style="display:inline-block;background:#fff;color:#000;font-weight:600;padding:.9rem 2.4rem;border-radius:8px;text-decoration:none">Book a Shoot</a>
       </section>` },
-    { name: 'Logo Row', desc: 'Clients & partners', thumb: THUMB.logos, html: `
-      <section style="padding:4rem 6vw;text-align:center;background:#000">
-        <h2 style="font-weight:700;font-style:italic;font-size:1.8rem;margin-bottom:2.5rem">Trusted By:</h2>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3rem;align-items:center;max-width:1100px;margin:0 auto">
-          <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/f77cd591-ecc9-40c7-a37a-cff3076636a2/logo.png?format=750w" alt="" style="max-height:110px;width:auto;max-width:100%;margin:0 auto;object-fit:contain">
-          <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/b5f948c0-6078-4a02-94f2-1898f0a2308c/TWC%2BNetwork.png?format=750w" alt="" style="max-height:110px;width:auto;max-width:100%;margin:0 auto;object-fit:contain">
-          <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/45e7d246-368b-47f6-ab70-be3b6d574d42/The_Atlanta_Journal-Constitution_%2804.2021%29.svg.png?format=750w" alt="" style="max-height:110px;width:auto;max-width:100%;margin:0 auto;object-fit:contain">
-          <img src="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/43212666-26e6-446c-945d-fdd32259650e/252115BB-4D0C-4986-9D53-31ACB3C11766.png?format=750w" alt="" style="max-height:110px;width:auto;max-width:100%;margin:0 auto;object-fit:contain">
+    { cat: 'CTA', name: 'Double CTA', desc: 'Primary + secondary action', html: `
+      <section style="padding:6rem 6vw;text-align:center;background:#000">
+        <h2 style="font-weight:700;font-style:italic;font-size:2.4rem;margin-bottom:.8rem">Let&rsquo;s make something great.</h2>
+        <p style="opacity:.8;margin-bottom:2.2rem">Pick whichever feels right — we&rsquo;ll take it from there.</p>
+        <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+          <a href="book.html" style="display:inline-block;background:#f0523d;color:#fff;font-weight:600;padding:.9rem 2.4rem;border-radius:8px;text-decoration:none">Book a Shoot</a>
+          <a href="#" style="display:inline-block;border:1.5px solid #fff;color:#fff;font-weight:600;padding:.9rem 2.4rem;border-radius:8px;text-decoration:none">See the Work</a>
         </div>
       </section>` },
-    { name: 'Spacer', desc: 'Vertical breathing room', thumb: THUMB.spacer, html: `<section style="height:6rem;background:#000"></section>` },
+    { cat: 'Utility', name: 'Spacer', desc: 'Vertical breathing room', html: `<section style="height:6rem;background:#000"></section>` },
+    { cat: 'Utility', name: 'Divider', desc: 'Subtle separator line', html: `
+      <section style="padding:2.5rem 6vw;background:#000">
+        <div style="max-width:1100px;margin:0 auto;border-top:1px solid rgba(255,255,255,.18)"></div>
+      </section>` },
   ];
+  const TPL_CATS = ['All', ...[...new Set(TEMPLATES.map((t) => t.cat))]];
 
   function openTemplates(refSec, where) {
-    const wrap = mkModal(`<h3>Add a section</h3><div class="bsub">Every block is fully editable after you place it.</div><div class="ospace-tpl-grid"></div>`);
+    const wrap = mkModal(`<h3>Add a section</h3><div class="bsub">Real previews — every block is fully editable once placed.</div><div class="ospace-cats"></div><div class="ospace-tpl-grid v3"></div>`);
+    wrap.querySelector('.ospace-box').style.width = 'min(760px,94vw)';
+    const catsBar = wrap.querySelector('.ospace-cats');
     const grid = wrap.querySelector('.ospace-tpl-grid');
-    TEMPLATES.forEach((t) => {
+    let activeCat = 'All';
+    function renderCats() {
+      catsBar.innerHTML = '';
+      TPL_CATS.forEach((c) => {
+        const b = doc.createElement('button');
+        b.textContent = c;
+        if (c === activeCat) b.className = 'on';
+        b.onclick = () => { activeCat = c; renderCats(); renderGrid(); };
+        catsBar.appendChild(b);
+      });
+    }
+    function renderGrid() {
+      grid.innerHTML = '';
+      TEMPLATES.filter((t) => activeCat === 'All' || t.cat === activeCat).forEach((t, i) => {
+        const b = doc.createElement('button');
+        b.style.animationDelay = (i * 30) + 'ms';
+        const preview = t.html.replace(/autoplay/g, '').replace(/<video /g, '<video preload="metadata" ');
+        b.innerHTML = `<div class="ospace-live-thumb"><div>${preview}</div></div><div class="t">${t.name}</div><div class="d">${t.desc}</div>`;
+        b.onclick = () => {
+          pushUndo();
+          const tmp = doc.createElement('div');
+          tmp.innerHTML = t.html.trim();
+          const node = tmp.firstElementChild;
+          if (refSec) (where === 'before' ? refSec.before(node) : refSec.after(node));
+          else doc.body.appendChild(node);
+          wrap.remove();
+          bindAll();
+          node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          select(node, false);
+        };
+        grid.appendChild(b);
+      });
+    }
+    renderCats(); renderGrid();
+  }
+
+  /* ================= element palette — add anything, anywhere ================= */
+  const ELEMENTS = [
+    { name: 'Heading', icon: IC.text, edit: true, html: '<h2 style="font-weight:700;font-style:italic;font-size:2.2rem;margin:1rem 0">New heading</h2>' },
+    { name: 'Subheading', icon: IC.text, edit: true, html: '<h3 style="font-weight:600;font-size:1.4rem;margin:.8rem 0">New subheading</h3>' },
+    { name: 'Paragraph', icon: IC.edit, edit: true, html: '<p style="margin:.8rem 0;line-height:1.7">Write your paragraph here.</p>' },
+    { name: 'Button', icon: IC.btnEl, edit: true, html: '<a href="#" style="display:inline-block;background:#f0523d;color:#fff;font-weight:600;padding:.85rem 2.2rem;border-radius:8px;text-decoration:none;margin:.8rem 0">Button text</a>' },
+    { name: 'Image', icon: IC.img, html: `<img src="${IMGS.photo1}" alt="" style="width:100%;max-width:640px;border-radius:6px;margin:.8rem 0">` },
+    { name: 'Video', icon: IC.play, html: '<video controls playsinline src="assets/hero.mp4" style="width:100%;max-width:720px;border-radius:6px;margin:.8rem 0"></video>' },
+    { name: 'Quote', icon: IC.quote, edit: true, html: '<blockquote style="border-left:3px solid #f0523d;padding:.4rem 0 .4rem 1.2rem;margin:1rem 0;font-style:italic;font-size:1.15rem">&ldquo;A line worth quoting.&rdquo;</blockquote>' },
+    { name: 'List', icon: IC.divider, edit: true, html: '<ul style="margin:.8rem 0 .8rem 1.4rem;line-height:2"><li>First point</li><li>Second point</li><li>Third point</li></ul>' },
+    { name: 'Divider', icon: IC.divider, html: '<div style="border-top:1px solid rgba(255,255,255,.2);margin:2rem 0"></div>' },
+    { name: 'Spacer', icon: IC.spacer, html: '<div style="height:3rem"></div>' },
+  ];
+
+  function openElements(target, where) {
+    const wrap = mkModal(`<h3>Insert element</h3><div class="bsub">Dropped ${where === 'before' ? 'above' : where === 'inside' ? 'inside' : 'below'} the selected ${labelFor(target).toLowerCase()} — then just start typing.</div><div class="ospace-elem-grid"></div>`);
+    const grid = wrap.querySelector('.ospace-elem-grid');
+    ELEMENTS.forEach((el) => {
       const b = doc.createElement('button');
-      b.innerHTML = `<div class="thumb">${t.thumb}</div><div class="t">${t.name}</div><div class="d">${t.desc}</div>`;
+      b.innerHTML = `<div class="ic">${el.icon}</div>${el.name}`;
       b.onclick = () => {
         pushUndo();
         const tmp = doc.createElement('div');
-        tmp.innerHTML = t.html.trim();
+        tmp.innerHTML = el.html.trim();
         const node = tmp.firstElementChild;
-        if (refSec) (where === 'before' ? refSec.before(node) : refSec.after(node));
-        else doc.body.appendChild(node);
+        if (where === 'before') target.before(node);
+        else if (where === 'inside') target.appendChild(node);
+        else target.after(node);
         wrap.remove();
         bindAll();
         node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        select(node, false);
+        if (el.edit) startTextEdit(node);
       };
       grid.appendChild(b);
     });
   }
+
+  /* ================= custom right-click menu ================= */
+  let ctxEl = null;
+  let copiedStyle = null;
+  function closeCtx() { if (ctxEl) { ctxEl.remove(); ctxEl = null; } }
+
+  function ctxItem(it) {
+    if (it === 'div') { const d = doc.createElement('div'); d.className = 'div'; return d; }
+    if (it.lbl) { const l = doc.createElement('div'); l.className = 'lbl'; l.textContent = it.lbl; return l; }
+    const b = doc.createElement('div');
+    b.className = 'it' + (it.danger ? ' danger' : '');
+    b.innerHTML = `${it.icon || ''}<span>${it.label}</span>${it.k ? `<span class="k">${it.k}</span>` : ''}${it.sub ? `<span class="k">${IC.chev}</span>` : ''}`;
+    if (it.sub) {
+      const sub = doc.createElement('div');
+      sub.className = 'sub';
+      it.sub.forEach((s) => sub.appendChild(ctxItem(s)));
+      b.appendChild(sub);
+    } else if (it.fn) {
+      b.onclick = (e) => { e.stopPropagation(); closeCtx(); it.fn(); };
+    }
+    return b;
+  }
+
+  function openCtx(el, x, y) {
+    closeCtx();
+    const isText = TEXT_TAGS.includes(el.tagName) && !el.querySelector('img,video');
+    const sec = topSection(el);
+    const container = ['DIV','SECTION','HEADER','FOOTER','MAIN','UL'].includes(el.tagName);
+    const animOpts = [['', 'None'], ['fade-up', 'Fade up'], ['fade-in', 'Fade in'], ['slide-left', 'Slide left'], ['slide-right', 'Slide right'], ['zoom', 'Zoom in']];
+    const items = [
+      { lbl: labelFor(el) },
+      isText && { label: 'Edit text', icon: IC.edit, k: 'dbl-click', fn: () => startTextEdit(el) },
+      el.tagName === 'IMG' && { label: 'Replace image…', icon: IC.img, fn: () => { select(el); } },
+      el.tagName === 'VIDEO' && { label: 'Replace video…', icon: IC.play, fn: () => { select(el); } },
+      { label: 'Insert', icon: IC.plus, sub: [
+        { label: 'Element above', icon: IC.up, fn: () => openElements(el, 'before') },
+        { label: 'Element below', icon: IC.down, fn: () => openElements(el, 'after') },
+        container && { label: 'Element inside', icon: IC.plus, fn: () => openElements(el, 'inside') },
+        'div',
+        sec && { label: 'Section above', icon: IC.up, fn: () => openTemplates(sec, 'before') },
+        sec && { label: 'Section below', icon: IC.down, fn: () => openTemplates(sec, 'after') },
+      ].filter(Boolean) },
+      { label: 'Animate', icon: IC.anim, sub: animOpts.map(([v, lab]) => ({ label: lab, icon: IC.anim, fn: () => {
+        pushUndo();
+        if (v) { el.setAttribute('data-anim', v); ensureAnimRuntime(); el.classList.remove('ospace-in'); void el.offsetWidth; el.classList.add('ospace-in'); }
+        else { el.removeAttribute('data-anim'); }
+      } })) },
+      'div',
+      { label: 'Duplicate', icon: IC.dup, fn: () => { pushUndo(); const c = el.cloneNode(true); c.classList.remove('ospace-selected'); el.after(c); bindAll(); } },
+      { label: 'Copy style', icon: IC.copy, fn: () => {
+        const cs = getComputedStyle(el);
+        copiedStyle = {
+          inline: el.getAttribute('style') || '',
+          anim: el.getAttribute('data-anim'),
+          computed: { color: cs.color, fontSize: cs.fontSize, fontWeight: cs.fontWeight, fontStyle: cs.fontStyle, textAlign: cs.textAlign, backgroundColor: cs.backgroundColor, borderRadius: cs.borderRadius, letterSpacing: cs.letterSpacing, textTransform: cs.textTransform },
+        };
+      } },
+      copiedStyle !== null && { label: 'Paste style', icon: IC.paste, fn: () => {
+        pushUndo();
+        if (copiedStyle.inline) el.setAttribute('style', copiedStyle.inline);
+        else Object.entries(copiedStyle.computed).forEach(([k, v]) => {
+          if (v && v !== 'rgba(0, 0, 0, 0)' && v !== 'none' && v !== 'normal' && v !== '0px') el.style[k] = v;
+        });
+        copiedStyle.anim ? (el.setAttribute('data-anim', copiedStyle.anim), ensureAnimRuntime(), el.classList.add('ospace-in')) : el.removeAttribute('data-anim');
+      } },
+      'div',
+      { label: 'Move up', icon: IC.up, k: '⌥↑', fn: () => { const t = sec && sec === el ? sec : el; if (t.previousElementSibling && !isEditorUI(t.previousElementSibling)) { pushUndo(); t.previousElementSibling.before(t); } } },
+      { label: 'Move down', icon: IC.down, k: '⌥↓', fn: () => { const t = sec && sec === el ? sec : el; if (t.nextElementSibling && !isEditorUI(t.nextElementSibling)) { pushUndo(); t.nextElementSibling.after(t); } } },
+      { label: 'Select parent', icon: IC.parent, fn: () => { if (el.parentElement && el.parentElement !== doc.body) select(el.parentElement); } },
+      { label: 'Style panel', icon: IC.style, fn: () => select(el) },
+      'div',
+      { label: 'Delete', icon: IC.del, k: '⌫', danger: true, fn: () => { pushUndo(); el.remove(); deselect(); } },
+    ].filter(Boolean);
+
+    ctxEl = doc.createElement('div');
+    ctxEl.className = 'ospace-ctx ospace-ui';
+    ctxEl.dataset.ospace = '1';
+    items.forEach((it) => ctxEl.appendChild(ctxItem(it)));
+    doc.body.appendChild(ctxEl);
+    const r = ctxEl.getBoundingClientRect();
+    ctxEl.style.left = Math.min(x, innerWidth - r.width - 10) + 'px';
+    ctxEl.style.top = Math.min(y, innerHeight - r.height - 10) + 'px';
+  }
+
+  doc.addEventListener('contextmenu', (e) => {
+    if (editingEl) return; // native menu while typing (spellcheck etc.)
+    if (isEditorUI(e.target)) { e.preventDefault(); return; }
+    e.preventDefault();
+    select(e.target, false);
+    openCtx(e.target, e.clientX, e.clientY);
+  });
+  doc.addEventListener('click', () => closeCtx(), true);
+  doc.addEventListener('scroll', () => closeCtx(), true);
 
   /* ================= find & replace ================= */
   let findBox = null;
@@ -840,6 +1094,7 @@
       <tr><td>Move section up / down</td><td><kbd>⌥↑</kbd> / <kbd>⌥↓</kbd></td></tr>
       <tr><td>Delete selected element</td><td><kbd>⌫</kbd></td></tr>
       <tr><td>Deselect / close</td><td><kbd>Esc</kbd></td></tr>
+      <tr><td>Everything menu</td><td><kbd>right-click</kbd></td></tr>
       <tr><td>This sheet</td><td><kbd>?</kbd></td></tr>
     </table></div>`);
   }
