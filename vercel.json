@@ -6,6 +6,9 @@
   "functions": {
     "api/serve.js": {
       "includeFiles": "*.html"
+    },
+    "api/pages.js": {
+      "includeFiles": "*.html"
     }
   },
   "rewrites": [

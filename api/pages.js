@@ -89,9 +89,12 @@ module.exports = async (req, res) => {
       }
 
       if (!page) {
-        // list all pages with status
-        const drafts = await blobFind('pages/draft/');
-        const published = await blobFind('pages/published/');
+        // list all pages with status; Blob may not be connected yet — degrade gracefully
+        let drafts = [], published = [];
+        try {
+          drafts = await blobFind('pages/draft/');
+          published = await blobFind('pages/published/');
+        } catch {}
         const names = new Set(staticPages());
         drafts.forEach((b) => names.add(b.pathname.replace('pages/draft/', '')));
         published.forEach((b) => names.add(b.pathname.replace('pages/published/', '')));
