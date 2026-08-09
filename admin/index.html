@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenSpace — Visual Editor</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,600;1,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0c0f;--bg2:#0e1116;--panel:#13161c;--panel2:#191d24;--line:#252a33;--line2:#323945;
+  --text:#eef1f5;--dim:#8b94a1;--faint:#5b636f;
+  --accent:#f0523d;--accent2:#ff6a54;--green:#34d68b;--amber:#e8c34a;--blue:#5aa2e8;
+  --r:12px;--shadow:0 20px 60px rgba(0,0,0,.55);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:'Poppins',sans-serif;font-size:13.5px;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,select{font-family:inherit}
+::selection{background:rgba(240,82,61,.35)}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}
+
+/* ============ LOGIN ============ */
+#login{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:var(--bg);overflow:hidden}
+#login .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:drift 14s ease-in-out infinite alternate}
+#login .orb.a{width:480px;height:480px;background:#f0523d33;top:-120px;left:-100px}
+#login .orb.b{width:420px;height:420px;background:#5aa2e826;bottom:-140px;right:-80px;animation-delay:-7s}
+@keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(60px,40px) scale(1.15)}}
+#login .card{position:relative;background:rgba(19,22,28,.82);backdrop-filter:blur(18px);border:1px solid var(--line);border-radius:20px;padding:3rem 2.6rem 2.6rem;width:min(400px,92vw);text-align:center;box-shadow:var(--shadow);animation:rise .5s cubic-bezier(.2,.9,.3,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+#login img{height:60px;margin:0 auto 1.1rem;filter:drop-shadow(0 4px 16px rgba(0,0,0,.5))}
+#login h1{font-size:1.35rem;font-weight:700;letter-spacing:-.01em}
+#login h1 span{color:var(--accent)}
+#login .sub{color:var(--dim);font-size:.8rem;margin:.3rem 0 1.8rem}
+#login .fieldwrap{position:relative;margin-bottom:1rem}
+#login input{width:100%;padding:.95rem 1.1rem;border-radius:11px;border:1px solid var(--line);background:var(--bg2);color:var(--text);font-size:.95rem;transition:border-color .2s, box-shadow .2s}
+#login input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,82,61,.18)}
+#login button.go{width:100%;padding:.95rem;border-radius:11px;background:linear-gradient(135deg,var(--accent),#d43a26);color:#fff;font-weight:600;font-size:.95rem;transition:transform .15s, box-shadow .2s;box-shadow:0 6px 24px rgba(240,82,61,.35)}
+#login button.go:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(240,82,61,.45)}
+#login button.go:active{transform:translateY(0)}
+#login button.go.busy{opacity:.7;pointer-events:none}
+#login .err{color:#ff7b6e;font-size:.78rem;margin-top:.9rem;min-height:1.1em;opacity:0;transition:opacity .2s}
+#login .err.on{opacity:1}
+#login .shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+
+/* ============ SHELL ============ */
+#app{display:none;height:100vh;grid-template-rows:56px 1fr;grid-template-columns:264px 1fr}
+#app.on{display:grid;animation:fadein .35s both}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+/* ---- topbar ---- */
+#topbar{grid-column:1/-1;display:flex;align-items:center;gap:.55rem;background:var(--panel);border-bottom:1px solid var(--line);padding:0 .9rem 0 1.1rem}
+#topbar .brand{display:flex;align-items:center;gap:.55rem;font-weight:700;font-style:italic;font-size:.95rem;margin-right:.8rem;user-select:none}
+#topbar .brand img{height:26px}
+#topbar .brand span{color:var(--accent)}
+.crumb{display:flex;align-items:center;gap:.45rem;color:var(--dim);font-size:.82rem;background:var(--bg2);border:1px solid var(--line);padding:.4rem .8rem;border-radius:9px}
+.crumb b{color:var(--text);font-weight:600}
+#saveState{display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--faint);margin-left:.4rem;min-width:110px;transition:color .3s}
+#saveState .pulse{width:7px;height:7px;border-radius:50%;background:var(--faint);transition:background .3s}
+#saveState.dirty{color:var(--amber)} #saveState.dirty .pulse{background:var(--amber);animation:blink 1.2s infinite}
+#saveState.saving{color:var(--blue)} #saveState.saving .pulse{background:var(--blue);animation:blink .7s infinite}
+#saveState.saved{color:var(--green)} #saveState.saved .pulse{background:var(--green)}
+@keyframes blink{50%{opacity:.35}}
+#topbar .grow{flex:1}
+.tbtn{display:flex;align-items:center;gap:.45rem;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:.5rem .85rem;font-size:.8rem;font-weight:500;color:var(--text);transition:border-color .15s, background .15s, transform .1s}
+.tbtn:hover{border-color:var(--line2);background:#1e232b}
+.tbtn:active{transform:scale(.97)}
+.tbtn.primary{background:linear-gradient(135deg,var(--accent),#d43a26);border-color:transparent;color:#fff;font-weight:600;box-shadow:0 4px 16px rgba(240,82,61,.3)}
+.tbtn.primary:hover{box-shadow:0 6px 22px rgba(240,82,61,.42)}
+.tbtn.green{background:linear-gradient(135deg,var(--green),#1fae6d);border-color:transparent;color:#06301c;font-weight:600;box-shadow:0 4px 16px rgba(52,214,139,.25)}
+.tbtn.icon{padding:.5rem .55rem}
+.tbtn:disabled{opacity:.4;pointer-events:none}
+.tbtn kbd{font-family:inherit;font-size:.62rem;color:var(--faint);border:1px solid var(--line);border-radius:4px;padding:1px 4px;margin-left:.1rem}
+.devices{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel2)}
+.devices button{color:var(--faint);padding:.5rem .6rem;transition:color .15s, background .15s}
+.devices button:hover{color:var(--dim)}
+.devices button.on{background:var(--line);color:var(--text)}
+
+/* ---- sidebar ---- */
+#side{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:1.1rem .9rem;display:flex;flex-direction:column;gap:.2rem}
+#side::-webkit-scrollbar{width:8px} #side::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+#side h2{display:flex;align-items:center;justify-content:space-between;font-size:.66rem;text-transform:uppercase;letter-spacing:.12em;color:var(--faint);margin:1.1rem .3rem .45rem;font-weight:600}
+#side h2:first-child{margin-top:0}
+#side h2 button{color:var(--faint);border:1px solid var(--line);border-radius:6px;width:20px;height:20px;display:grid;place-items:center;transition:all .15s}
+#side h2 button:hover{color:var(--accent);border-color:var(--accent)}
+.pagelist{display:flex;flex-direction:column;gap:3px}
+.pcard{display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;padding:.62rem .7rem;border-radius:10px;font-size:.85rem;border:1px solid transparent;transition:background .15s,border-color .15s;position:relative}
+.pcard:hover{background:var(--panel2)}
+.pcard.on{background:var(--panel2);border-color:var(--line2)}
+.pcard.on::before{content:"";position:absolute;left:-9px;top:22%;bottom:22%;width:3px;border-radius:3px;background:var(--accent)}
+.pcard .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard .home{color:var(--faint)}
+.pill{font-size:.58rem;font-weight:600;letter-spacing:.05em;padding:2.5px 7px;border-radius:20px;text-transform:uppercase}
+.pill.draft{background:rgba(232,195,74,.14);color:var(--amber)}
+.pill.live{background:rgba(52,214,139,.13);color:var(--green)}
+.pill.orig{background:rgba(139,148,161,.12);color:var(--dim)}
+#side .foot{margin-top:auto;padding-top:1.2rem}
+#side .ghost{display:flex;align-items:center;gap:.5rem;width:100%;padding:.55rem .7rem;border-radius:9px;color:var(--dim);font-size:.8rem;border:1px dashed var(--line);justify-content:center;transition:all .15s}
+#side .ghost:hover{color:var(--text);border-color:var(--line2);background:var(--panel2)}
+#side .danger:hover{color:#ff7b6e;border-color:#ff7b6e44}
+#side .kbd-hint{color:var(--faint);font-size:.68rem;text-align:center;margin-top:.9rem;line-height:1.9}
+#side .kbd-hint kbd{border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:inherit;font-size:.62rem}
+
+/* ---- canvas ---- */
+#canvas{position:relative;background:
+  radial-gradient(1200px 500px at 70% -10%, rgba(90,162,232,.05), transparent),
+  radial-gradient(900px 500px at 10% 110%, rgba(240,82,61,.05), transparent),
+  var(--bg2);
+  display:flex;overflow:hidden}
+#frameWrap{flex:1;display:flex;justify-content:center;padding:18px;transition:padding .3s}
+#frameShell{position:relative;flex:1;max-width:100%;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);background:#000;transition:max-width .35s cubic-bezier(.2,.9,.3,1)}
+#frameWrap.tablet #frameShell{max-width:834px;flex:0 1 834px}
+#frameWrap.mobile #frameShell{max-width:402px;flex:0 1 402px}
+#frame{border:0;width:100%;height:100%;background:#000;display:block}
+#loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,12,15,.6);backdrop-filter:blur(2px);z-index:5}
+#loading.on{display:flex}
+.spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---- toasts ---- */
+#toasts{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.toast{display:flex;align-items:center;gap:.6rem;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.7rem 1.1rem;font-size:.82rem;box-shadow:var(--shadow);animation:toastin .3s cubic-bezier(.2,.9,.3,1) both}
+.toast.ok{border-color:rgba(52,214,139,.4)} .toast.ok svg{color:var(--green)}
+.toast.err{border-color:rgba(255,123,110,.4)} .toast.err svg{color:#ff7b6e}
+.toast.out{animation:toastout .25s both}
+@keyframes toastin{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes toastout{to{opacity:0;transform:translateY(10px) scale(.96)}}
+
+/* ---- modals ---- */
+.modal{position:fixed;inset:0;background:rgba(5,6,8,.65);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:150}
+.modal.on{display:flex}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1.7rem;width:min(440px,92vw);box-shadow:var(--shadow);animation:rise .35s cubic-bezier(.2,.9,.3,1) both}
+.modal h3{font-size:1.02rem;margin-bottom:.4rem}
+.modal .msub{color:var(--dim);font-size:.78rem;margin-bottom:1.1rem}
+.modal label{display:block;font-size:.72rem;color:var(--dim);margin:.9rem 0 .35rem;font-weight:500}
+.modal input,.modal select{width:100%;padding:.7rem .9rem;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--text);font-size:.85rem;transition:border-color .2s}
+.modal input:focus,.modal select:focus{outline:none;border-color:var(--accent)}
+.modal .row{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.5rem}
+
+/* ---- command palette ---- */
+#palette{position:fixed;inset:0;background:rgba(5,6,8,.55);backdrop-filter:blur(4px);display:none;z-index:180;padding-top:14vh;justify-content:center;align-items:flex-start}
+#palette.on{display:flex}
+#palette .pbox{width:min(560px,92vw);background:var(--panel);border:1px solid var(--line2);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);animation:rise .25s both}
+#palette input{width:100%;padding:1rem 1.2rem;background:none;border:0;border-bottom:1px solid var(--line);color:var(--text);font-size:1rem}
+#palette input:focus{outline:none}
+#palette .results{max-height:320px;overflow-y:auto;padding:.5rem}
+#palette .item{display:flex;align-items:center;gap:.7rem;width:100%;text-align:left;padding:.65rem .8rem;border-radius:9px;font-size:.86rem;color:var(--text)}
+#palette .item .k{margin-left:auto;color:var(--faint);font-size:.68rem}
+#palette .item.sel,#palette .item:hover{background:var(--panel2)}
+#palette .item svg{color:var(--dim)}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="orb a"></div><div class="orb b"></div>
+  <div class="card" id="loginCard">
+    <img src="../assets/openspace-logo.svg" alt="OpenSpace">
+    <h1>Open<span>Space</span></h1>
+    <div class="sub">Sign in to edit your site</div>
+    <form id="loginForm">
+      <div class="fieldwrap">
+        <input type="password" id="pw" placeholder="Enter your password" autocomplete="current-password" autofocus>
+      </div>
+      <button type="submit" class="go" id="loginBtn">Unlock Studio</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app">
+  <div id="topbar">
+    <div class="brand"><img src="../assets/openspace-logo.svg" alt="">Open<span>Space</span></div>
+    <div class="crumb"><svg class="i" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h13V9.5"/></svg><b id="pageName">—</b></div>
+    <div id="saveState"><div class="pulse"></div><span id="saveStateText">All changes saved</span></div>
+    <div class="grow"></div>
+    <div class="devices" title="Preview width">
+      <button data-dev="desktop" class="on" title="Desktop"><svg class="i" viewBox="0 0 24 24"><rect x="2.5" y="4.5" width="19" height="12.5" rx="1.6"/><path d="M9 20.5h6M12 17v3.5"/></svg></button>
+      <button data-dev="tablet" title="Tablet"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="2.8" width="14" height="18.4" rx="2"/><path d="M10.5 18.4h3"/></svg></button>
+      <button data-dev="mobile" title="Mobile"><svg class="i" viewBox="0 0 24 24"><rect x="7.2" y="2.8" width="9.6" height="18.4" rx="2"/><path d="M10.8 18.6h2.4"/></svg></button>
+    </div>
+    <button class="tbtn icon" id="undoBtn" title="Undo (⌘Z)"><svg class="i" viewBox="0 0 24 24"><path d="M8.5 5.5 4 10l4.5 4.5M4 10h10a6 6 0 0 1 0 12h-3"/></svg></button>
+    <button class="tbtn icon" id="redoBtn" title="Redo (⌘⇧Z)"><svg class="i" viewBox="0 0 24 24"><path d="M15.5 5.5 20 10l-4.5 4.5M20 10H10a6 6 0 0 0 0 12h3"/></svg></button>
+    <button class="tbtn" id="historyBtn"><svg class="i" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 2.3 6.3M4 10V4m0 6h6M12 8v4.5l3 2"/></svg>History</button>
+    <button class="tbtn" id="seoBtn"><svg class="i" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg>SEO</button>
+    <button class="tbtn" id="previewBtn"><svg class="i" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>Preview</button>
+    <button class="tbtn primary" id="saveBtn"><svg class="i" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 21v-7h8v7"/></svg>Save<kbd>⌘S</kbd></button>
+    <button class="tbtn green" id="publishBtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg>Publish</button>
+    <button class="tbtn icon" id="logoutBtn" title="Sign out"><svg class="i" viewBox="0 0 24 24"><path d="M14 4h-8v16h8M10 12h11M18 8.5 21.5 12 18 15.5"/></svg></button>
+  </div>
+
+  <div id="side">
+    <h2>Pages <button id="newPageBtn" title="New page">＋</button></h2>
+    <div class="pagelist" id="pageList"></div>
+
+    <h2 style="margin-top:1.6rem">This Page</h2>
+    <button class="ghost" id="discardBtn"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.8A1 1 0 0 1 10 4h4a1 1 0 0 1 1 1V7m-9 0 1 13.2a1 1 0 0 0 1 .8h6a1 1 0 0 0 1-.8L19 7"/></svg>Discard draft</button>
+    <button class="ghost" id="revertBtn" style="margin-top:6px"><svg class="i" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 2.3 6.3M4 10V4m0 6h6"/></svg>Revert to original</button>
+    <button class="ghost danger" id="deleteBtn" style="margin-top:6px"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.8A1 1 0 0 1 10 4h4a1 1 0 0 1 1 1V7m-9 0 1 13.2a1 1 0 0 0 1 .8h6a1 1 0 0 0 1-.8L19 7M10 11v6M14 11v6"/></svg>Delete page</button>
+
+    <h2 style="margin-top:1.6rem">Framework Sites</h2>
+    <button class="ghost" id="urlBtn"><svg class="i" viewBox="0 0 24 24"><path d="M9 15l6-6M7.5 12 5.6 13.9a3.4 3.4 0 0 0 4.8 4.8L12.3 17M16.5 12l1.9-1.9a3.4 3.4 0 0 0-4.8-4.8L11.7 7"/></svg>Edit a URL (slots)</button>
+
+    <div class="foot">
+      <div class="kbd-hint">
+        <kbd>⌘K</kbd> quick actions &nbsp;·&nbsp; <kbd>⌘S</kbd> save<br>
+        Click text to edit · drag ⠿ to reorder
+      </div>
+    </div>
+  </div>
+
+  <div id="canvas">
+    <div id="frameWrap">
+      <div id="frameShell">
+        <iframe id="frame" title="Page editor"></iframe>
+        <div id="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<div class="modal" id="newPageModal">
+  <div class="box">
+    <h3>New Page</h3>
+    <div class="msub">Creates a draft — nothing goes live until you publish.</div>
+    <label>Filename</label>
+    <input id="npName" placeholder="services.html" spellcheck="false">
+    <label>Start from</label>
+    <select id="npFrom"><option value="">Blank page</option></select>
+    <div class="row">
+      <button class="tbtn" data-close>Cancel</button>
+      <button class="tbtn primary" id="npCreate">Create Page</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="seoModal">
+  <div class="box">
+    <h3>Search &amp; Social</h3>
+    <div class="msub">How <b id="seoPage"></b> appears on Google and link previews.</div>
+    <label>Page title</label>
+    <input id="seoTitle">
+    <label>Meta description</label>
+    <input id="seoDesc" placeholder="One or two compelling sentences…">
+    <div class="row">
+      <button class="tbtn" data-close>Cancel</button>
+      <button class="tbtn primary" id="seoApply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="historyModal">
+  <div class="box">
+    <h3>Version History</h3>
+    <div class="msub">Snapshots of <b id="histPage"></b> — restore any version as the working draft.</div>
+    <div id="histList" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+    <div class="row"><button class="tbtn" data-close>Close</button></div>
+  </div>
+</div>
+
+<div class="modal" id="urlModal">
+  <div class="box">
+    <h3>Edit a URL</h3>
+    <div class="msub">For framework pages (Next.js etc.) that mark regions with <code>data-ospace-slot</code>. Loads the page, lets you edit the slots, and saves slot content — your app hydrates it with OpenSlot.</div>
+    <label>Path on this domain</label>
+    <input id="urlPath" placeholder="/about  or  /pricing" spellcheck="false">
+    <div class="row">
+      <button class="tbtn" data-close>Cancel</button>
+      <button class="tbtn primary" id="urlOpen">Open in Editor</button>
+    </div>
+  </div>
+</div>
+
+<div id="palette">
+  <div class="pbox">
+    <input id="palInput" placeholder="Search pages &amp; actions…" spellcheck="false">
+    <div class="results" id="palResults"></div>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const ICONS={
+  page:'<svg class="i" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg>',
+  action:'<svg class="i" viewBox="0 0 24 24"><path d="m13 3-8 10h6l-1 8 8-10h-6z"/></svg>',
+  ok:'<svg class="i" viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>',
+  err:'<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V13M12 16.4v.2"/></svg>'
+};
+let currentPage=null, dirty=false, pages=[], autosaveTimer=null, saving=false;
+
+/* ---------- toasts ---------- */
+function toast(msg, kind){
+  const t=document.createElement('div');
+  t.className='toast '+(kind||'ok');
+  t.innerHTML=(kind==='err'?ICONS.err:ICONS.ok)+'<span>'+msg+'</span>';
+  $('#toasts').appendChild(t);
+  setTimeout(()=>{t.classList.add('out'); setTimeout(()=>t.remove(),260)},2600);
+}
+
+/* ---------- save state indicator ---------- */
+function saveState(state,label){
+  const el=$('#saveState');
+  el.className=state?state:'';
+  $('#saveStateText').textContent=label;
+}
+
+/* ---------- auth ---------- */
+async function checkSession(){
+  try{ const r=await fetch('/api/pages'); if(r.ok){ enter(); } }catch{}
+}
+function enter(){ $('#login').style.display='none'; $('#app').classList.add('on'); loadPages(); }
+$('#loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const btn=$('#loginBtn'); btn.classList.add('busy'); btn.textContent='Unlocking…';
+  const r=await fetch('/api/login',{method:'POST',body:JSON.stringify({password:$('#pw').value})}).catch(()=>null);
+  btn.classList.remove('busy'); btn.textContent='Unlock Studio';
+  if(r&&r.ok){ enter(); }
+  else{
+    $('#loginErr').textContent = r ? 'That password isn’t right.' : 'Can’t reach the server.';
+    $('#loginErr').classList.add('on');
+    $('#loginCard').classList.add('shake');
+    setTimeout(()=>$('#loginCard').classList.remove('shake'),450);
+  }
+});
+$('#logoutBtn').onclick=async()=>{ await fetch('/api/login',{method:'DELETE'}); location.reload(); };
+
+/* ---------- pages ---------- */
+async function loadPages(){
+  const r=await fetch('/api/pages'); const d=await r.json(); pages=d.pages||[];
+  const list=$('#pageList'); list.innerHTML='';
+  const from=$('#npFrom'); from.innerHTML='<option value="">Blank page</option>';
+  pages.forEach(p=>{
+    const b=document.createElement('button');
+    b.className='pcard'+(p.name===currentPage?' on':'');
+    const pill=p.hasDraft?'<span class="pill draft">Draft</span>':(p.hasPublished?'<span class="pill live">Live</span>':'<span class="pill orig">Original</span>');
+    const home=p.name==='index.html'?'<svg class="i home" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h13V9.5"/></svg>':ICONS.page.replace('class="i"','class="i" style="width:13px;height:13px;color:var(--faint)"');
+    b.innerHTML=home+'<span class="fname">'+p.name.replace('.html','')+'</span>'+pill;
+    b.onclick=()=>openPage(p.name);
+    list.appendChild(b);
+    const o=document.createElement('option'); o.value=p.name; o.textContent='Copy of '+p.name; from.appendChild(o);
+  });
+  if(!currentPage && pages.length) openPage(pages.find(p=>p.name==='index.html')?.name||pages[0].name);
+}
+
+async function openPage(name){
+  if(dirty && !confirm('You have unsaved changes. Leave anyway?')) return;
+  currentPage=name; urlMode=null; dirty=false; saveState('','All changes saved');
+  $('#pageName').textContent=name.replace('.html','');
+  document.querySelectorAll('.pcard').forEach(b=>b.classList.toggle('on',b.querySelector('.fname').textContent===name.replace('.html','')));
+  $('#loading').classList.add('on');
+  const r=await fetch(`/api/pages?page=${encodeURIComponent(name)}&mode=draft&t=${Date.now()}`);
+  const html=await r.text();
+  $('#frame').srcdoc=html.replace('</body>','<script src="/assets/editor.js"><\/script></body>');
+}
+$('#frame').addEventListener('load',()=>$('#loading').classList.remove('on'));
+
+/* ---------- editor bridge ---------- */
+let pendingResolve=null, urlMode=null; // urlMode = "/path" when editing a framework page via slots
+window.addEventListener('message', e=>{
+  const m=e.data||{};
+  if(m.type==='ospace-dirty'){
+    dirty=true; saveState('dirty','Unsaved changes');
+    clearTimeout(autosaveTimer);
+    autosaveTimer=setTimeout(()=>save(true), 3000);
+  }
+  if(m.type==='ospace-html'){ pendingResolve&&pendingResolve({html:m.html}); pendingResolve=null; }
+  if(m.type==='ospace-slots'){ pendingResolve&&pendingResolve({html:m.html,slots:m.slots}); pendingResolve=null; }
+});
+function getHTML(){
+  return new Promise(res=>{
+    pendingResolve=res;
+    $('#frame').contentWindow.postMessage({type:'ospace-get-html'},'*');
+    setTimeout(()=>{ if(pendingResolve){pendingResolve=null;res(null);} },3000);
+  });
+}
+function editorCmd(cmd,data){ $('#frame').contentWindow.postMessage(Object.assign({type:cmd},data||{}),'*'); }
+
+/* ---------- save / publish ---------- */
+async function persist(action, auto){
+  if(saving||(!currentPage&&!urlMode)) return;
+  const out=await getHTML(); if(out==null){ if(!auto) toast('Editor not ready','err'); return; }
+  saving=true; saveState('saving', action==='publish'?'Publishing…':'Saving…');
+  let r;
+  if(urlMode && out.slots){
+    r=await fetch('/api/content?path='+encodeURIComponent(urlMode),{method:'POST',body:JSON.stringify({action,slots:out.slots})}).catch(()=>null);
+  } else {
+    r=await fetch('/api/pages',{method:'POST',body:JSON.stringify({action,page:currentPage,html:out.html})}).catch(()=>null);
+  }
+  saving=false;
+  if(r&&r.ok){
+    dirty=false;
+    if(action==='publish'){ saveState('saved','Published'); toast('Published — changes are live ✦'); }
+    else{ saveState('saved', auto?'Autosaved':'Draft saved'); if(!auto) toast('Draft saved'); }
+    if(!urlMode) loadPagesSoft();
+  }
+  else{ saveState('dirty', action+' failed'); toast(action==='publish'?'Publish failed':'Save failed — check connection','err'); }
+}
+const save=(auto)=>persist('save',auto);
+const publish=()=>persist('publish',false);
+async function loadPagesSoft(){
+  const r=await fetch('/api/pages'); const d=await r.json(); pages=d.pages||[];
+  const cur=currentPage; const keep=currentPage;
+  // re-render list without reloading iframe
+  const list=$('#pageList'); const scroll=list.scrollTop;
+  currentPage=keep; renderList(); list.scrollTop=scroll;
+}
+function renderList(){
+  const list=$('#pageList'); list.innerHTML='';
+  pages.forEach(p=>{
+    const b=document.createElement('button');
+    b.className='pcard'+(p.name===currentPage?' on':'');
+    const pill=p.hasDraft?'<span class="pill draft">Draft</span>':(p.hasPublished?'<span class="pill live">Live</span>':'<span class="pill orig">Original</span>');
+    const home=p.name==='index.html'?'<svg class="i home" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h13V9.5"/></svg>':ICONS.page.replace('class="i"','class="i" style="width:13px;height:13px;color:var(--faint)"');
+    b.innerHTML=home+'<span class="fname">'+p.name.replace('.html','')+'</span>'+pill;
+    b.onclick=()=>openPage(p.name);
+    list.appendChild(b);
+  });
+}
+
+$('#saveBtn').onclick=()=>save(false);
+$('#publishBtn').onclick=publish;
+$('#previewBtn').onclick=()=>window.open('/'+currentPage,'_blank');
+$('#undoBtn').onclick=()=>editorCmd('ospace-undo');
+$('#redoBtn').onclick=()=>editorCmd('ospace-redo');
+
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='s'){ e.preventDefault(); save(false); }
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); openPalette(); }
+  if(e.key==='Escape') closePalette();
+});
+
+/* ---------- page actions ---------- */
+$('#discardBtn').onclick=async()=>{
+  if(!confirm('Discard the saved draft for '+currentPage+'?'))return;
+  await fetch('/api/pages',{method:'POST',body:JSON.stringify({action:'discard-draft',page:currentPage})});
+  toast('Draft discarded'); await loadPages(); openPage(currentPage);
+};
+$('#revertBtn').onclick=async()=>{
+  if(!confirm('Revert '+currentPage+' to the original file? Removes draft AND live override.'))return;
+  await fetch('/api/pages',{method:'POST',body:JSON.stringify({action:'revert',page:currentPage})});
+  toast('Reverted to original'); await loadPages(); openPage(currentPage);
+};
+$('#deleteBtn').onclick=async()=>{
+  if(!confirm('Delete '+currentPage+' entirely?'))return;
+  const r=await fetch('/api/pages',{method:'POST',body:JSON.stringify({action:'delete',page:currentPage})});
+  const d=await r.json();
+  if(!r.ok) return toast(d.error,'err');
+  toast('Page deleted'); currentPage=null; loadPages();
+};
+
+/* ---------- new page ---------- */
+$('#newPageBtn').onclick=()=>{ $('#npName').value=''; $('#newPageModal').classList.add('on'); setTimeout(()=>$('#npName').focus(),50); };
+$('#npCreate').onclick=async()=>{
+  let name=$('#npName').value.trim().toLowerCase().replace(/\s+/g,'-');
+  if(!name) return;
+  if(!name.endsWith('.html')) name+='.html';
+  const r=await fetch('/api/pages',{method:'POST',body:JSON.stringify({action:'create',page:name,cloneFrom:$('#npFrom').value||undefined})});
+  const d=await r.json();
+  if(!r.ok) return toast(d.error,'err');
+  $('#newPageModal').classList.remove('on');
+  toast('Page created');
+  await loadPages(); openPage(name);
+};
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('.modal').classList.remove('on'));
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('on'); }));
+
+/* ---------- SEO ---------- */
+$('#seoBtn').onclick=()=>{
+  const doc=$('#frame').contentDocument;
+  $('#seoPage').textContent=currentPage;
+  $('#seoTitle').value=doc?.title||'';
+  $('#seoDesc').value=doc?.querySelector('meta[name="description"]')?.content||'';
+  $('#seoModal').classList.add('on');
+};
+$('#seoApply').onclick=()=>{
+  editorCmd('ospace-seo',{title:$('#seoTitle').value,description:$('#seoDesc').value});
+  $('#seoModal').classList.remove('on');
+  toast('SEO updated');
+};
+
+/* ---------- URL mode (framework/slot pages) ---------- */
+$('#urlBtn').onclick=()=>{ $('#urlPath').value=''; $('#urlModal').classList.add('on'); setTimeout(()=>$('#urlPath').focus(),50); };
+$('#urlOpen').onclick=async()=>{
+  let path=$('#urlPath').value.trim();
+  if(!path) return;
+  if(!path.startsWith('/')) path='/'+path;
+  $('#urlModal').classList.remove('on');
+  if(dirty && !confirm('You have unsaved changes. Leave anyway?')) return;
+  urlMode=path; currentPage=null; dirty=false;
+  $('#pageName').textContent=path+' (slots)';
+  document.querySelectorAll('.pcard').forEach(b=>b.classList.remove('on'));
+  $('#loading').classList.add('on');
+  try{
+    const r=await fetch(path,{headers:{'Accept':'text/html'}});
+    let html=await r.text();
+    // hydrate draft slot content if it exists
+    try{
+      const cr=await fetch('/api/content?path='+encodeURIComponent(path)+'&mode=draft');
+      if(cr.ok){
+        const slots=await cr.json();
+        html=html.replace('</body>', `<script>window.__ospaceSlotDraft=${JSON.stringify(slots)};document.addEventListener('DOMContentLoaded',()=>{const d=window.__ospaceSlotDraft||{};for(const k in d){const el=document.querySelector('[data-ospace-slot="'+k+'"]');if(el)el.innerHTML=d[k];}});<\/script></body>`);
+      }
+    }catch{}
+    const base='<base href="'+location.origin+path.replace(/[^/]*$/,'')+'">';
+    html=html.replace(/<head([^>]*)>/i,'<head$1>'+base);
+    $('#frame').srcdoc=html.replace('</body>','<script src="/assets/editor.js"><\/script></body>');
+  }catch(e){
+    $('#loading').classList.remove('on');
+    toast('Could not load '+path,'err');
+  }
+};
+
+/* ---------- history ---------- */
+$('#historyBtn').onclick=async()=>{
+  if(urlMode) return toast('History covers standard pages (not slot URLs) for now','err');
+  if(!currentPage) return;
+  $('#histPage').textContent=currentPage;
+  const list=$('#histList'); list.innerHTML='<div style="color:var(--dim);font-size:.8rem">Loading…</div>';
+  $('#historyModal').classList.add('on');
+  const r=await fetch('/api/pages?history='+encodeURIComponent(currentPage));
+  const d=await r.json();
+  list.innerHTML='';
+  if(!d.versions||!d.versions.length){ list.innerHTML='<div style="color:var(--dim);font-size:.8rem">No snapshots yet — versions are captured automatically on every save and publish.</div>'; return; }
+  d.versions.forEach(v=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:.8rem;padding:.6rem .8rem;border:1px solid var(--line);border-radius:9px';
+    const when=new Date(v.ts).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    row.innerHTML=`<span style="flex:1;font-size:.82rem">${when}</span><span style="color:var(--faint);font-size:.7rem">${(v.size/1024).toFixed(1)} KB</span>`;
+    const b=document.createElement('button');
+    b.className='tbtn'; b.textContent='Restore';
+    b.onclick=async()=>{
+      if(!confirm('Restore this version as the working draft?'))return;
+      const rr=await fetch('/api/pages',{method:'POST',body:JSON.stringify({action:'restore',page:currentPage,ts:v.ts})});
+      if(rr.ok){ $('#historyModal').classList.remove('on'); toast('Version restored to draft'); openPage(currentPage); }
+      else toast('Restore failed','err');
+    };
+    row.appendChild(b);
+    list.appendChild(row);
+  });
+};
+
+/* ---------- devices ---------- */
+document.querySelectorAll('.devices button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.devices button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    $('#frameWrap').className='';
+    if(b.dataset.dev!=='desktop') $('#frameWrap').classList.add(b.dataset.dev);
+  };
+});
+
+/* ---------- command palette ---------- */
+let palItems=[], palSel=0;
+function openPalette(){
+  $('#palette').classList.add('on');
+  $('#palInput').value=''; renderPalette(''); $('#palInput').focus();
+}
+function closePalette(){ $('#palette').classList.remove('on'); }
+function paletteActions(){
+  const acts=[
+    {label:'Save draft',k:'⌘S',run:()=>save(false)},
+    {label:'Publish page',k:'',run:publish},
+    {label:'Preview live page',k:'',run:()=>window.open('/'+currentPage,'_blank')},
+    {label:'New page…',k:'',run:()=>$('#newPageBtn').click()},
+    {label:'Edit SEO…',k:'',run:()=>$('#seoBtn').click()},
+    {label:'Undo',k:'⌘Z',run:()=>editorCmd('ospace-undo')},
+    {label:'Sign out',k:'',run:()=>$('#logoutBtn').click()},
+  ];
+  return acts.map(a=>({icon:ICONS.action,...a}));
+}
+function renderPalette(q){
+  q=q.toLowerCase();
+  const pageItems=pages.filter(p=>p.name.includes(q)).map(p=>({icon:ICONS.page,label:'Open '+p.name,run:()=>openPage(p.name)}));
+  const acts=paletteActions().filter(a=>a.label.toLowerCase().includes(q));
+  palItems=[...pageItems,...acts]; palSel=0;
+  const box=$('#palResults'); box.innerHTML='';
+  palItems.forEach((it,i)=>{
+    const b=document.createElement('button');
+    b.className='item'+(i===palSel?' sel':'');
+    b.innerHTML=it.icon+'<span>'+it.label+'</span>'+(it.k?'<span class="k">'+it.k+'</span>':'');
+    b.onclick=()=>{ closePalette(); it.run(); };
+    box.appendChild(b);
+  });
+}
+$('#palInput').addEventListener('input',e=>renderPalette(e.target.value));
+$('#palInput').addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'){ e.preventDefault(); palSel=Math.min(palSel+1,palItems.length-1); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); palSel=Math.max(palSel-1,0); }
+  else if(e.key==='Enter'){ e.preventDefault(); if(palItems[palSel]){ closePalette(); palItems[palSel].run(); } return; }
+  else return;
+  document.querySelectorAll('#palResults .item').forEach((b,i)=>b.classList.toggle('sel',i===palSel));
+});
+$('#palette').addEventListener('click',e=>{ if(e.target===$('#palette')) closePalette(); });
+
+window.addEventListener('beforeunload',e=>{ if(dirty){e.preventDefault();e.returnValue='';} });
+checkSession();
+</script>
+</body>
+</html>

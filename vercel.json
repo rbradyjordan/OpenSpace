@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "functions": {
+    "api/serve.js": {
+      "includeFiles": "*.html"
+    }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/api/serve?p=index.html" },
+    { "source": "/:page(.*\\.html)", "destination": "/api/serve?p=:page" }
+  ],
+  "headers": [
+    {
+      "source": "/admin/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    }
+  ]
+}

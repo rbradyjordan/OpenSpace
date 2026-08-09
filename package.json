@@ -1,0 +1,9 @@
+{
+  "name": "openspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OpenSpace \u2014 a login-gated visual editing system (CMS) for static and Next.js sites on Vercel",
+  "dependencies": {
+    "@vercel/blob": "^0.23.4"
+  }
+}
