@@ -97,10 +97,22 @@
   .ospace-panel .rangeval{font-size:10px;color:var(--ospaceD);min-width:34px;text-align:right}
   .ospace-check{display:flex !important;align-items:center;gap:8px;font-size:12px !important;color:var(--ospaceT) !important;margin:8px 0 !important;cursor:pointer}
   .ospace-check input{width:auto !important;accent-color:var(--ospaceA)}
+  .ospace-media-top{display:flex;gap:8px;margin-bottom:4px}
+  .ospace-media-top input{flex:1;padding:8px 11px;border-radius:9px;border:1px solid var(--ospaceL);background:#0e1116;color:var(--ospaceT);font:12px Poppins}
+  .ospace-media-top input:focus{outline:none;border-color:var(--ospaceA)}
   .ospace-media-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
-  .ospace-media-grid .cell{position:relative;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color .15s;aspect-ratio:1}
-  .ospace-media-grid .cell:hover{border-color:var(--ospaceA)}
-  .ospace-media-grid img,.ospace-media-grid video{width:100%;height:100%;object-fit:cover;display:block}
+  .ospace-media-grid .cell{position:relative;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color .15s,transform .2s cubic-bezier(.34,1.56,.64,1);aspect-ratio:1;background:#0e1116;animation:ospaceSpring .25s cubic-bezier(.34,1.56,.64,1) both}
+  .ospace-media-grid .cell:hover{border-color:var(--ospaceA);transform:translateY(-2px)}
+  .ospace-media-grid img,.ospace-media-grid video{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s cubic-bezier(.2,.9,.3,1)}
+  .ospace-media-grid .cell:hover img,.ospace-media-grid .cell:hover video{transform:scale(1.06)}
+  .ospace-media-grid .veil{position:absolute;inset:0;background:linear-gradient(180deg,transparent 42%,rgba(5,6,8,.88));opacity:0;transition:opacity .18s;display:flex;flex-direction:column;justify-content:flex-end;padding:7px 8px;pointer-events:none}
+  .ospace-media-grid .cell:hover .veil{opacity:1}
+  .ospace-media-grid .veil .nm{font:600 9.5px Poppins;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ospace-media-grid .veil .dt{font:400 8.5px Poppins;color:#aab3bf}
+  .ospace-media-grid .kind{position:absolute;top:6px;left:6px;font:600 8px Poppins;letter-spacing:.06em;text-transform:uppercase;background:rgba(5,6,8,.7);backdrop-filter:blur(4px);color:#cfd6df;padding:3px 6px;border-radius:5px;pointer-events:none}
+  .ospace-media-grid .rm{position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:7px;border:0;background:rgba(5,6,8,.72);color:#ff7b6e;display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .15s,transform .15s,background .15s}
+  .ospace-media-grid .cell:hover .rm{opacity:1}
+  .ospace-media-grid .rm:hover{transform:scale(1.1);background:rgba(240,82,61,.85);color:#fff}
   .ospace-modal{position:fixed;inset:0;background:rgba(5,6,8,.68);z-index:2147483004;display:flex;align-items:center;justify-content:center;animation:ospaceFade .15s}
   @keyframes ospaceFade{from{opacity:0}to{opacity:1}}
   .ospace-box{background:var(--ospaceP);border:1px solid var(--ospaceL2);border-radius:16px;padding:22px;width:min(640px,94vw);max-height:82vh;overflow-y:auto;font-family:Poppins;color:var(--ospaceT);box-shadow:0 24px 70px rgba(0,0,0,.6);animation:ospaceSlideUp .25s cubic-bezier(.2,.9,.3,1)}
@@ -171,23 +183,33 @@
   `;
   doc.head.appendChild(css);
 
-  /* ============ shipped animation runtime (kept in serialized page) ============ */
+  /* ============ shipped animation runtime (kept in serialized page) ============
+     v2: entrance timing is tunable via CSS vars (--anim-dur/--anim-delay/--anim-ease)
+     set inline per element, plus data-hover micro-interactions. */
   function ensureAnimRuntime() {
+    const oldCss = doc.getElementById('ospace-anim-css');
+    if (oldCss && oldCss.getAttribute('data-v') !== '2') oldCss.remove();
     if (!doc.getElementById('ospace-anim-css')) {
       const s = doc.createElement('style');
       s.id = 'ospace-anim-css';
+      s.setAttribute('data-v', '2');
       s.textContent = `[data-anim]{opacity:0}[data-anim].ospace-in{opacity:1}
 @keyframes ospaceFadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
 @keyframes ospaceFadeIn{from{opacity:0}to{opacity:1}}
 @keyframes ospaceSlideL{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
 @keyframes ospaceSlideR{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
 @keyframes ospaceZoom{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:none}}
-[data-anim="fade-up"].ospace-in{animation:ospaceFadeUp .8s cubic-bezier(.2,.8,.3,1) both}
-[data-anim="fade-in"].ospace-in{animation:ospaceFadeIn 1s ease both}
-[data-anim="slide-left"].ospace-in{animation:ospaceSlideL .8s cubic-bezier(.2,.8,.3,1) both}
-[data-anim="slide-right"].ospace-in{animation:ospaceSlideR .8s cubic-bezier(.2,.8,.3,1) both}
-[data-anim="zoom"].ospace-in{animation:ospaceZoom .7s cubic-bezier(.2,.8,.3,1) both}
-@media (prefers-reduced-motion:reduce){[data-anim]{opacity:1;animation:none !important}}`;
+[data-anim="fade-up"].ospace-in{animation:ospaceFadeUp var(--anim-dur,.8s) var(--anim-ease,cubic-bezier(.2,.8,.3,1)) var(--anim-delay,0s) both}
+[data-anim="fade-in"].ospace-in{animation:ospaceFadeIn var(--anim-dur,1s) var(--anim-ease,ease) var(--anim-delay,0s) both}
+[data-anim="slide-left"].ospace-in{animation:ospaceSlideL var(--anim-dur,.8s) var(--anim-ease,cubic-bezier(.2,.8,.3,1)) var(--anim-delay,0s) both}
+[data-anim="slide-right"].ospace-in{animation:ospaceSlideR var(--anim-dur,.8s) var(--anim-ease,cubic-bezier(.2,.8,.3,1)) var(--anim-delay,0s) both}
+[data-anim="zoom"].ospace-in{animation:ospaceZoom var(--anim-dur,.7s) var(--anim-ease,cubic-bezier(.2,.8,.3,1)) var(--anim-delay,0s) both}
+[data-hover]{transition:transform .28s cubic-bezier(.2,.9,.3,1),box-shadow .28s cubic-bezier(.2,.9,.3,1),opacity .28s ease,filter .28s ease}
+[data-hover="lift"]:hover{transform:translateY(-6px);box-shadow:0 18px 44px rgba(0,0,0,.45)}
+[data-hover="zoom"]:hover{transform:scale(1.035)}
+[data-hover="glow"]:hover{box-shadow:0 10px 38px rgba(240,82,61,.45)}
+[data-hover="fade"]:hover{opacity:.72}
+@media (prefers-reduced-motion:reduce){[data-anim]{opacity:1;animation:none !important}[data-hover]{transition:none}[data-hover]:hover{transform:none;box-shadow:none;opacity:1}}`;
       doc.head.appendChild(s);
     }
     if (!doc.getElementById('ospace-anim-js')) {
@@ -197,7 +219,7 @@
       doc.body.appendChild(sc);
     }
   }
-  if (doc.querySelector('[data-anim]')) {
+  if (doc.querySelector('[data-anim],[data-hover]')) {
     ensureAnimRuntime();
     doc.querySelectorAll('[data-anim]').forEach((n) => n.classList.add('ospace-in'));
   }
@@ -232,7 +254,7 @@
       n.removeAttribute && (n.removeAttribute('contenteditable'), n.removeAttribute('draggable'));
     });
     // keep anim runtime only if something still uses it
-    if (!clone.querySelector('[data-anim]')) {
+    if (!clone.querySelector('[data-anim],[data-hover]')) {
       clone.querySelectorAll('#ospace-anim-css,#ospace-anim-js').forEach((n) => n.remove());
     }
     return '<!DOCTYPE html>\n' + clone.outerHTML;
@@ -669,14 +691,50 @@
     commonActions(p, el);
   }
 
-  /* ---- entrance animation controls ---- */
+  /* ---- entrance animation + hover controls ---- */
+  const EASES = [
+    ['', 'Smooth (default)'],
+    ['cubic-bezier(.34,1.56,.64,1)', 'Springy'],
+    ['ease-out', 'Ease out'],
+    ['linear', 'Linear'],
+  ];
+  function replayAnim(el) {
+    ensureAnimRuntime();
+    el.classList.remove('ospace-in'); void el.offsetWidth; el.classList.add('ospace-in');
+  }
   function animControls(p, el) {
     h4(p, 'Entrance Animation');
     selectField(p, 'When scrolled into view', el.getAttribute('data-anim') || '', [
       ['','None'],['fade-up','Fade up'],['fade-in','Fade in'],['slide-left','Slide from left'],['slide-right','Slide from right'],['zoom','Zoom in'],
     ], (v) => {
-      if (v) { el.setAttribute('data-anim', v); ensureAnimRuntime(); el.classList.remove('ospace-in'); void el.offsetWidth; el.classList.add('ospace-in'); }
-      else { el.removeAttribute('data-anim'); el.classList.remove('ospace-in'); }
+      if (v) { el.setAttribute('data-anim', v); replayAnim(el); }
+      else { el.removeAttribute('data-anim'); el.classList.remove('ospace-in'); el.style.removeProperty('--anim-dur'); el.style.removeProperty('--anim-delay'); el.style.removeProperty('--anim-ease'); }
+    });
+    rangeField(p, 'Duration', parseFloat(el.style.getPropertyValue('--anim-dur')) || 0.8, 0.2, 2.5, 0.05, (v) => v + 's', (v) => { el.style.setProperty('--anim-dur', v + 's'); if (el.getAttribute('data-anim')) replayAnim(el); });
+    rangeField(p, 'Delay', parseFloat(el.style.getPropertyValue('--anim-delay')) || 0, 0, 1.5, 0.05, (v) => v + 's', (v) => { el.style.setProperty('--anim-delay', v + 's'); if (el.getAttribute('data-anim')) replayAnim(el); });
+    selectField(p, 'Easing', el.style.getPropertyValue('--anim-ease').trim(), EASES, (v) => {
+      v ? el.style.setProperty('--anim-ease', v) : el.style.removeProperty('--anim-ease');
+      if (el.getAttribute('data-anim')) replayAnim(el);
+    });
+    const kids = [...el.children].filter((c) => !isEditorUI(c) && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE');
+    if (kids.length > 1) {
+      btn(p, IC.anim + ' Stagger children in', () => {
+        pushUndo();
+        const type = el.getAttribute('data-anim') || 'fade-up';
+        kids.forEach((c, i) => {
+          c.setAttribute('data-anim', type);
+          c.style.setProperty('--anim-delay', (i * 0.12).toFixed(2) + 's');
+          replayAnim(c);
+        });
+        el.removeAttribute('data-anim'); el.classList.remove('ospace-in');
+      });
+    }
+    h4(p, 'Hover Effect');
+    selectField(p, 'When the cursor is over it', el.getAttribute('data-hover') || '', [
+      ['','None'],['lift','Lift'],['zoom','Zoom'],['glow','Glow'],['fade','Fade'],
+    ], (v) => {
+      if (v) { el.setAttribute('data-hover', v); ensureAnimRuntime(); }
+      else el.removeAttribute('data-hover');
     });
   }
 
@@ -714,22 +772,65 @@
     } catch (e) { alert('Upload failed: ' + e.message); return null; }
   }
   async function mediaLibrary(onPick) {
-    const wrap = mkModal(`<h3>Media Library</h3><div class="bsub">Everything you've uploaded — click to use.</div><div class="ospace-media-grid"><div style="color:#8b94a1;font-size:11px">Loading…</div></div>`);
-    const r = await fetch('/api/upload');
-    const d = await r.json();
+    const wrap = mkModal(`<h3>Media Library</h3><div class="bsub">Everything you've uploaded — click to use, hover for details.</div><div class="ospace-media-top"><input type="text" placeholder="Search by filename…"></div><div class="ospace-media-grid"><div style="color:#8b94a1;font-size:11px">Loading…</div></div>`);
     const grid = wrap.querySelector('.ospace-media-grid');
-    grid.innerHTML = '';
-    if (!d.media || !d.media.length) grid.innerHTML = '<div style="color:#8b94a1;font-size:11px">No uploads yet — use “Upload replacement” on any image.</div>';
-    (d.media || []).forEach((m) => {
-      const isVid = /\.(mp4|webm|mov|m4v)$/i.test(m.pathname);
-      const cell = doc.createElement('div'); cell.className = 'cell';
-      const node = doc.createElement(isVid ? 'video' : 'img');
-      node.src = m.url; if (isVid) node.muted = true;
-      cell.title = m.pathname.replace('media/', '');
-      cell.onclick = () => { onPick(m.url); wrap.remove(); };
-      cell.appendChild(node);
-      grid.appendChild(cell);
-    });
+    const search = wrap.querySelector('.ospace-media-top input');
+    let items = [];
+    try {
+      const r = await fetch('/api/upload');
+      items = (await r.json()).media || [];
+    } catch {}
+    function niceName(m) { return m.pathname.replace('media/', '').replace(/^\d+-/, ''); }
+    function render(q) {
+      grid.innerHTML = '';
+      const shown = items.filter((m) => !q || niceName(m).toLowerCase().includes(q.toLowerCase()));
+      if (!shown.length) {
+        grid.innerHTML = `<div style="color:#8b94a1;font-size:11px;grid-column:1/-1">${items.length ? 'Nothing matches that search.' : 'No uploads yet — use “Upload replacement” on any image.'}</div>`;
+        return;
+      }
+      shown.forEach((m, i) => {
+        const isVid = /\.(mp4|webm|mov|m4v)$/i.test(m.pathname);
+        const isDoc = /\.(pdf|mp3|wav|ico)$/i.test(m.pathname);
+        const cell = doc.createElement('div'); cell.className = 'cell';
+        cell.style.animationDelay = Math.min(i * 22, 300) + 'ms';
+        if (isDoc) {
+          const ph = doc.createElement('div');
+          ph.style.cssText = 'width:100%;height:100%;display:grid;place-items:center;color:#5b636f;font:600 10px Poppins';
+          ph.textContent = niceName(m).split('.').pop().toUpperCase();
+          cell.appendChild(ph);
+        } else {
+          const node = doc.createElement(isVid ? 'video' : 'img');
+          node.src = m.url; node.loading = 'lazy';
+          if (isVid) { node.muted = true; node.preload = 'metadata'; }
+          cell.appendChild(node);
+        }
+        const when = m.uploadedAt ? new Date(m.uploadedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        const size = m.size ? (m.size / 1024 > 900 ? (m.size / 1048576).toFixed(1) + ' MB' : Math.round(m.size / 1024) + ' KB') : '';
+        const veil = doc.createElement('div'); veil.className = 'veil';
+        veil.innerHTML = `<div class="nm"></div><div class="dt">${when}${size ? ' · ' + size : ''}</div>`;
+        veil.querySelector('.nm').textContent = niceName(m);
+        cell.appendChild(veil);
+        if (isVid || isDoc) {
+          const kind = doc.createElement('div'); kind.className = 'kind';
+          kind.textContent = isVid ? 'Video' : 'File';
+          cell.appendChild(kind);
+        }
+        const rm = doc.createElement('button'); rm.className = 'rm'; rm.title = 'Delete from library';
+        rm.innerHTML = IC.del;
+        rm.onclick = async (e) => {
+          e.stopPropagation();
+          if (!confirm(`Delete ${niceName(m)} from the media library? Pages already using it keep working until republished.`)) return;
+          const dr = await fetch('/api/upload?url=' + encodeURIComponent(m.url), { method: 'DELETE' });
+          if (dr.ok) { items = items.filter((x) => x !== m); render(search.value); }
+          else alert('Delete failed');
+        };
+        cell.appendChild(rm);
+        cell.onclick = () => { onPick(m.url); wrap.remove(); };
+        grid.appendChild(cell);
+      });
+    }
+    search.oninput = () => render(search.value);
+    render('');
   }
 
   /* ================= modals ================= */
@@ -1171,9 +1272,19 @@
     if (m.type === 'ospace-seo') {
       pushUndo();
       doc.title = m.title || doc.title;
-      let meta = doc.querySelector('meta[name="description"]');
-      if (!meta) { meta = doc.createElement('meta'); meta.name = 'description'; doc.head.appendChild(meta); }
-      meta.content = m.description || '';
+      const setMeta = (attr, key, val) => {
+        let meta = doc.querySelector(`meta[${attr}="${key}"]`);
+        if (val == null || val === '') { if (meta) meta.remove(); return; }
+        if (!meta) { meta = doc.createElement('meta'); meta.setAttribute(attr, key); doc.head.appendChild(meta); }
+        meta.setAttribute('content', val);
+      };
+      setMeta('name', 'description', m.description || '');
+      setMeta('property', 'og:title', m.title || '');
+      setMeta('property', 'og:description', m.description || '');
+      if (m.image !== undefined) {
+        setMeta('property', 'og:image', m.image || null);
+        setMeta('name', 'twitter:card', m.image ? 'summary_large_image' : null);
+      }
       markDirty();
     }
   });

@@ -46,7 +46,7 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 @keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
 
 /* ============ SHELL ============ */
-#app{display:none;height:100vh;grid-template-rows:56px 1fr;grid-template-columns:264px 1fr}
+#app{display:none;height:100vh;grid-template-rows:56px 1fr;grid-template-columns:272px 1fr}
 #app.on{display:grid;animation:fadein .35s both}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 
@@ -85,17 +85,21 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 #side h2:first-child{margin-top:0}
 #side h2 button{color:var(--faint);border:1px solid var(--line);border-radius:6px;width:20px;height:20px;display:grid;place-items:center;transition:all .15s}
 #side h2 button:hover{color:var(--accent);border-color:var(--accent)}
-.pagelist{display:flex;flex-direction:column;gap:3px}
-.pcard{display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;padding:.62rem .7rem;border-radius:10px;font-size:.85rem;border:1px solid transparent;transition:background .15s,border-color .15s;position:relative}
-.pcard:hover{background:var(--panel2)}
-.pcard.on{background:var(--panel2);border-color:var(--line2)}
-.pcard.on::before{content:"";position:absolute;left:-9px;top:22%;bottom:22%;width:3px;border-radius:3px;background:var(--accent)}
-.pcard .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pcard .home{color:var(--faint)}
+.pagelist{display:flex;flex-direction:column;gap:10px}
+.pcard{position:relative;display:block;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--panel2);text-align:left;padding:0;isolation:isolate;transition:transform .25s cubic-bezier(.2,.9,.3,1),border-color .25s,box-shadow .25s}
+.pcard:hover{transform:translateY(-2px);border-color:var(--line2);box-shadow:0 12px 30px rgba(0,0,0,.4)}
+.pcard.on{border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,82,61,.18)}
+.pcard .thumb{position:absolute;inset:0;background-size:cover;background-position:center top;transform:scale(1.04);filter:saturate(.9) brightness(.78);transition:transform .5s cubic-bezier(.2,.9,.3,1),filter .5s}
+.pcard:hover .thumb{transform:scale(1.1);filter:saturate(1) brightness(.62)}
+.pcard .thumb.ph{display:grid;place-items:center;background:linear-gradient(140deg,#1a2027,#10141a);color:var(--faint);font-weight:700;font-style:italic;font-size:1.5rem;filter:none;transform:none}
+.pcard .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,12,15,.06) 32%,rgba(10,12,15,.5) 68%,rgba(10,12,15,.92))}
+.pcard .fname{position:absolute;left:.75rem;right:.6rem;bottom:.5rem;font-weight:600;font-size:.88rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.pcard .home{position:absolute;right:.55rem;bottom:.62rem;color:rgba(255,255,255,.75)}
 .pill{font-size:.58rem;font-weight:600;letter-spacing:.05em;padding:2.5px 7px;border-radius:20px;text-transform:uppercase}
-.pill.draft{background:rgba(232,195,74,.14);color:var(--amber)}
-.pill.live{background:rgba(52,214,139,.13);color:var(--green)}
-.pill.orig{background:rgba(139,148,161,.12);color:var(--dim)}
+.pcard .pill{position:absolute;top:.5rem;left:.5rem;backdrop-filter:blur(6px)}
+.pill.draft{background:rgba(232,195,74,.22);color:var(--amber)}
+.pill.live{background:rgba(52,214,139,.2);color:var(--green)}
+.pill.orig{background:rgba(30,35,43,.6);color:#aab3bf}
 #side .foot{margin-top:auto;padding-top:1.2rem}
 #side .ghost{display:flex;align-items:center;gap:.5rem;width:100%;padding:.55rem .7rem;border-radius:9px;color:var(--dim);font-size:.8rem;border:1px dashed var(--line);justify-content:center;transition:all .15s}
 #side .ghost:hover{color:var(--text);border-color:var(--line2);background:var(--panel2)}
@@ -139,6 +143,26 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .modal input:focus,.modal select:focus{outline:none;border-color:var(--accent)}
 .modal .row{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.5rem}
 
+/* ---- social & links ---- */
+.slrow{display:flex;align-items:center;gap:.6rem;margin-top:.55rem;padding:.55rem .6rem;border:1px solid var(--line);border-radius:10px;background:var(--bg2);transition:border-color .15s}
+.slrow:focus-within{border-color:var(--line2)}
+.slrow input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;flex-shrink:0;cursor:pointer}
+.slrow .lab{width:88px;font-size:.78rem;color:var(--text);font-weight:500;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slrow input.lab-edit{width:88px;flex-shrink:0;padding:.35rem .5rem !important;font-size:.75rem !important}
+.slrow input[type=url],.slrow input[type=text].urlin{flex:1;padding:.45rem .6rem;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:.78rem;min-width:0}
+.slrow input:focus{outline:none;border-color:var(--accent)}
+.slrow .rmlink{color:var(--faint);width:24px;height:24px;display:grid;place-items:center;border-radius:6px;flex-shrink:0;transition:all .15s}
+.slrow .rmlink:hover{color:#ff7b6e;background:rgba(240,82,61,.12)}
+.slrow.off .lab{color:var(--faint)}
+
+/* ---- share preview card ---- */
+.ogprev{margin-top:1.1rem;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg2)}
+.ogprev .ogimg{aspect-ratio:1.91/1;background:linear-gradient(140deg,#1a2027,#10141a) center/cover no-repeat;display:grid;place-items:center;color:var(--faint);font-size:.72rem}
+.ogprev .ogtxt{padding:.65rem .8rem .75rem}
+.ogprev .ogdomain{font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.ogprev .ogtitle{font-size:.85rem;font-weight:600;margin-top:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ogprev .ogdesc{font-size:.74rem;color:var(--dim);margin-top:.1rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
 /* ---- command palette ---- */
 #palette{position:fixed;inset:0;background:rgba(5,6,8,.55);backdrop-filter:blur(4px);display:none;z-index:180;padding-top:14vh;justify-content:center;align-items:flex-start}
 #palette.on{display:flex}
@@ -157,7 +181,7 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 <div id="login">
   <div class="orb a"></div><div class="orb b"></div>
   <div class="card" id="loginCard">
-    <img src="../assets/openspace-logo.svg" alt="OpenSpace">
+    <img src="../assets/openspace-logo.svg" alt="ClipPlayMedia">
     <h1>Open<span>Space</span></h1>
     <div class="sub">Sign in to edit your site</div>
     <form id="loginForm">
@@ -185,6 +209,7 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stro
     <button class="tbtn icon" id="redoBtn" title="Redo (⌘⇧Z)"><svg class="i" viewBox="0 0 24 24"><path d="M15.5 5.5 20 10l-4.5 4.5M20 10H10a6 6 0 0 0 0 12h3"/></svg></button>
     <button class="tbtn" id="historyBtn"><svg class="i" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 2.3 6.3M4 10V4m0 6h6M12 8v4.5l3 2"/></svg>History</button>
     <button class="tbtn" id="seoBtn"><svg class="i" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg>SEO</button>
+    <button class="tbtn" id="socialBtn"><svg class="i" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.6M8.2 13.2l7.6 4.6"/></svg>Social</button>
     <button class="tbtn" id="previewBtn"><svg class="i" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>Preview</button>
     <button class="tbtn primary" id="saveBtn"><svg class="i" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 21v-7h8v7"/></svg>Save<kbd>⌘S</kbd></button>
     <button class="tbtn green" id="publishBtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg>Publish</button>
@@ -246,9 +271,33 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stro
     <input id="seoTitle">
     <label>Meta description</label>
     <input id="seoDesc" placeholder="One or two compelling sentences…">
+    <label>Share image URL <span style="color:var(--faint);font-weight:400">(shown when the link is pasted anywhere)</span></label>
+    <input id="seoImg" placeholder="https://… — leave empty for no share image">
+    <div class="ogprev">
+      <div class="ogimg" id="ogImg">No share image</div>
+      <div class="ogtxt">
+        <div class="ogdomain" id="ogDomain">bradyjordan.com</div>
+        <div class="ogtitle" id="ogTitle">Page title</div>
+        <div class="ogdesc" id="ogDesc">Meta description preview…</div>
+      </div>
+    </div>
     <div class="row">
       <button class="tbtn" data-close>Cancel</button>
       <button class="tbtn primary" id="seoApply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="socialModal">
+  <div class="box" style="width:min(540px,94vw)">
+    <h3>Social &amp; Links</h3>
+    <div class="msub">One list — applied to the header and footer of <b>every page</b>. Toggle a platform off to hide it without losing the URL.</div>
+    <div id="socialRows"></div>
+    <button class="tbtn" id="socialAdd" style="margin-top:.8rem">＋ Add custom link</button>
+    <div class="row">
+      <button class="tbtn" data-close>Cancel</button>
+      <button class="tbtn" id="socialDraft">Apply to drafts</button>
+      <button class="tbtn green" id="socialPublish">Apply &amp; publish</button>
     </div>
   </div>
 </div>
@@ -328,21 +377,73 @@ $('#loginForm').addEventListener('submit', async e=>{
 });
 $('#logoutBtn').onclick=async()=>{ await fetch('/api/login',{method:'DELETE'}); location.reload(); };
 
+/* ---------- page thumbnails (extracted from each page's own hero imagery) ---------- */
+let thumbs={};
+try{ thumbs=JSON.parse(localStorage.getItem('ospaceThumbs')||'{}'); }catch{}
+function saveThumbs(){ try{ localStorage.setItem('ospaceThumbs', JSON.stringify(thumbs)); }catch{} }
+function absUrl(src){
+  if(/^(https?:)?\/\//i.test(src)||src.startsWith('data:')) return src;
+  return '/'+src.replace(/^\.?\//,'');
+}
+function extractThumb(html){
+  let m=html.match(/property=["']og:image["'][^>]*content=["']([^"']+)/i)||html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+  if(m) return absUrl(m[1]);
+  const re=/<img[^>]+src=["']([^"']+)["']/gi; let r;
+  while((r=re.exec(html))){
+    const s=r[1];
+    if(/logo|favicon|signature|\.svg|\.ico/i.test(s)) continue;
+    return absUrl(s);
+  }
+  const bg=html.match(/background(?:-image)?\s*:[^;"'}]*url\(["']?([^"')]+)/i);
+  if(bg&&!/logo/i.test(bg[1])) return absUrl(bg[1]);
+  return '';
+}
+function setThumb(name, html){
+  const t=extractThumb(html);
+  if(thumbs[name]!==t){ thumbs[name]=t; saveThumbs(); renderList(); }
+}
+let prefetching=false;
+async function prefetchThumbs(){
+  if(prefetching) return; prefetching=true;
+  for(const p of pages){
+    if(thumbs[p.name]!==undefined) continue;
+    try{
+      const r=await fetch(`/api/pages?page=${encodeURIComponent(p.name)}&mode=draft`);
+      if(r.ok) setThumb(p.name, await r.text());
+      else thumbs[p.name]='';
+    }catch{ thumbs[p.name]=''; }
+  }
+  saveThumbs(); prefetching=false;
+}
+
 /* ---------- pages ---------- */
-async function loadPages(){
-  const r=await fetch('/api/pages'); const d=await r.json(); pages=d.pages||[];
-  const list=$('#pageList'); list.innerHTML='';
-  const from=$('#npFrom'); from.innerHTML='<option value="">Blank page</option>';
+function renderList(){
+  const list=$('#pageList'); const scroll=list.scrollTop; list.innerHTML='';
   pages.forEach(p=>{
     const b=document.createElement('button');
     b.className='pcard'+(p.name===currentPage?' on':'');
+    b.dataset.page=p.name;
     const pill=p.hasDraft?'<span class="pill draft">Draft</span>':(p.hasPublished?'<span class="pill live">Live</span>':'<span class="pill orig">Original</span>');
-    const home=p.name==='index.html'?'<svg class="i home" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h13V9.5"/></svg>':ICONS.page.replace('class="i"','class="i" style="width:13px;height:13px;color:var(--faint)"');
-    b.innerHTML=home+'<span class="fname">'+p.name.replace('.html','')+'</span>'+pill;
+    const home=p.name==='index.html'?'<svg class="i home" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h13V9.5"/></svg>':'';
+    const t=thumbs[p.name];
+    const nice=p.name.replace('.html','');
+    const thumb=t
+      ?`<span class="thumb" style="background-image:url('${t.replace(/'/g,"%27")}')"></span>`
+      :`<span class="thumb ph">${nice.charAt(0).toUpperCase()}</span>`;
+    b.innerHTML=thumb+'<span class="veil"></span>'+pill+'<span class="fname">'+nice+'</span>'+home;
     b.onclick=()=>openPage(p.name);
     list.appendChild(b);
+  });
+  list.scrollTop=scroll;
+}
+async function loadPages(){
+  const r=await fetch('/api/pages'); const d=await r.json(); pages=d.pages||[];
+  const from=$('#npFrom'); from.innerHTML='<option value="">Blank page</option>';
+  pages.forEach(p=>{
     const o=document.createElement('option'); o.value=p.name; o.textContent='Copy of '+p.name; from.appendChild(o);
   });
+  renderList();
+  prefetchThumbs();
   if(!currentPage && pages.length) openPage(pages.find(p=>p.name==='index.html')?.name||pages[0].name);
 }
 
@@ -350,10 +451,11 @@ async function openPage(name){
   if(dirty && !confirm('You have unsaved changes. Leave anyway?')) return;
   currentPage=name; urlMode=null; dirty=false; saveState('','All changes saved');
   $('#pageName').textContent=name.replace('.html','');
-  document.querySelectorAll('.pcard').forEach(b=>b.classList.toggle('on',b.querySelector('.fname').textContent===name.replace('.html','')));
+  document.querySelectorAll('.pcard').forEach(b=>b.classList.toggle('on',b.dataset.page===name));
   $('#loading').classList.add('on');
   const r=await fetch(`/api/pages?page=${encodeURIComponent(name)}&mode=draft&t=${Date.now()}`);
   let html=await r.text();
+  setThumb(name, html);
   // srcdoc iframes inherit /admin/ as their base URL — repoint relative assets at the site root
   html=html.replace(/<head([^>]*)>/i,`<head$1><base href="${location.origin}/">`);
   $('#frame').srcdoc=html.replace('</body>','<script src="/assets/editor.js"><\/script></body>');
@@ -397,7 +499,7 @@ async function persist(action, auto){
     dirty=false;
     if(action==='publish'){ saveState('saved','Published'); toast('Published — changes are live ✦'); }
     else{ saveState('saved', auto?'Autosaved':'Draft saved'); if(!auto) toast('Draft saved'); }
-    if(!urlMode) loadPagesSoft();
+    if(!urlMode){ if(out.html) setThumb(currentPage, out.html); loadPagesSoft(); }
   }
   else{ saveState('dirty', action+' failed'); toast(action==='publish'?'Publish failed':'Save failed — check connection','err'); }
 }
@@ -405,22 +507,7 @@ const save=(auto)=>persist('save',auto);
 const publish=()=>persist('publish',false);
 async function loadPagesSoft(){
   const r=await fetch('/api/pages'); const d=await r.json(); pages=d.pages||[];
-  const cur=currentPage; const keep=currentPage;
-  // re-render list without reloading iframe
-  const list=$('#pageList'); const scroll=list.scrollTop;
-  currentPage=keep; renderList(); list.scrollTop=scroll;
-}
-function renderList(){
-  const list=$('#pageList'); list.innerHTML='';
-  pages.forEach(p=>{
-    const b=document.createElement('button');
-    b.className='pcard'+(p.name===currentPage?' on':'');
-    const pill=p.hasDraft?'<span class="pill draft">Draft</span>':(p.hasPublished?'<span class="pill live">Live</span>':'<span class="pill orig">Original</span>');
-    const home=p.name==='index.html'?'<svg class="i home" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h13V9.5"/></svg>':ICONS.page.replace('class="i"','class="i" style="width:13px;height:13px;color:var(--faint)"');
-    b.innerHTML=home+'<span class="fname">'+p.name.replace('.html','')+'</span>'+pill;
-    b.onclick=()=>openPage(p.name);
-    list.appendChild(b);
-  });
+  renderList(); // re-render list without reloading iframe
 }
 
 $('#saveBtn').onclick=()=>save(false);
@@ -470,18 +557,96 @@ $('#npCreate').onclick=async()=>{
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('.modal').classList.remove('on'));
 document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('on'); }));
 
-/* ---------- SEO ---------- */
+/* ---------- SEO + share preview ---------- */
+function refreshOgPreview(){
+  const t=$('#seoTitle').value, d=$('#seoDesc').value, img=$('#seoImg').value.trim();
+  $('#ogTitle').textContent=t||'Page title';
+  $('#ogDesc').textContent=d||'Meta description preview…';
+  $('#ogDomain').textContent=location.hostname||'bradyjordan.com';
+  const box=$('#ogImg');
+  if(img){ box.style.backgroundImage=`url('${img.replace(/'/g,"%27")}')`; box.textContent=''; }
+  else{ box.style.backgroundImage=''; box.textContent='No share image'; }
+}
+['seoTitle','seoDesc','seoImg'].forEach(id=>$('#'+id).addEventListener('input',refreshOgPreview));
 $('#seoBtn').onclick=()=>{
   const doc=$('#frame').contentDocument;
   $('#seoPage').textContent=currentPage;
   $('#seoTitle').value=doc?.title||'';
   $('#seoDesc').value=doc?.querySelector('meta[name="description"]')?.content||'';
+  $('#seoImg').value=doc?.querySelector('meta[property="og:image"]')?.content||'';
+  refreshOgPreview();
   $('#seoModal').classList.add('on');
 };
 $('#seoApply').onclick=()=>{
-  editorCmd('ospace-seo',{title:$('#seoTitle').value,description:$('#seoDesc').value});
+  editorCmd('ospace-seo',{title:$('#seoTitle').value,description:$('#seoDesc').value,image:$('#seoImg').value.trim()});
   $('#seoModal').classList.remove('on');
-  toast('SEO updated');
+  toast('SEO & share settings updated');
+};
+
+/* ---------- social & links ---------- */
+let socialLinks=[];
+const SOCIAL_FIXED=['instagram','linkedin','youtube','tiktok','facebook','x'];
+function socialRow(l){
+  const row=document.createElement('div');
+  row.className='slrow'+(l.enabled?'':' off');
+  const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=!!l.enabled; chk.title='Show on the site';
+  chk.onchange=()=>{ l.enabled=chk.checked; row.classList.toggle('off',!l.enabled); };
+  row.appendChild(chk);
+  if(SOCIAL_FIXED.includes(l.id)){
+    const lab=document.createElement('span'); lab.className='lab'; lab.textContent=l.label;
+    row.appendChild(lab);
+  }else{
+    const lab=document.createElement('input'); lab.type='text'; lab.className='lab-edit'; lab.placeholder='Label'; lab.value=l.label||'';
+    lab.oninput=()=>{ l.label=lab.value; };
+    row.appendChild(lab);
+  }
+  const url=document.createElement('input'); url.type='url'; url.placeholder='https://…'; url.value=l.url||'';
+  url.oninput=()=>{ l.url=url.value.trim(); };
+  row.appendChild(url);
+  if(!SOCIAL_FIXED.includes(l.id)){
+    const rm=document.createElement('button'); rm.className='rmlink'; rm.title='Remove link';
+    rm.innerHTML='<svg class="i" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+    rm.onclick=()=>{ socialLinks=socialLinks.filter(x=>x!==l); renderSocialRows(); };
+    row.appendChild(rm);
+  }
+  return row;
+}
+function renderSocialRows(){
+  const box=$('#socialRows'); box.innerHTML='';
+  socialLinks.forEach(l=>box.appendChild(socialRow(l)));
+}
+$('#socialBtn').onclick=async()=>{
+  $('#socialModal').classList.add('on');
+  $('#socialRows').innerHTML='<div style="color:var(--dim);font-size:.8rem;margin-top:.5rem">Loading…</div>';
+  try{
+    const r=await fetch('/api/social'); const d=await r.json();
+    socialLinks=d.links||[];
+  }catch{ socialLinks=[]; }
+  renderSocialRows();
+};
+$('#socialAdd').onclick=()=>{
+  socialLinks.push({id:'custom-'+Date.now().toString(36),label:'',url:'',enabled:true});
+  renderSocialRows();
+  const rows=$('#socialRows').children;
+  rows[rows.length-1]?.querySelector('.lab-edit')?.focus();
+};
+async function applySocial(publish){
+  const bad=socialLinks.find(l=>l.enabled&&l.url&&!/^https?:\/\//i.test(l.url));
+  if(bad) return toast('Links must start with http:// or https://','err');
+  const btn=publish?$('#socialPublish'):$('#socialDraft');
+  btn.disabled=true;
+  const r=await fetch('/api/social',{method:'POST',body:JSON.stringify({action:'apply',publish,links:socialLinks})}).catch(()=>null);
+  btn.disabled=false;
+  if(!r||!r.ok){ const d=r?await r.json().catch(()=>({})):{}; return toast(d.error||'Could not apply links','err'); }
+  const d=await r.json();
+  $('#socialModal').classList.remove('on');
+  toast(publish?`Live on ${d.updated} page${d.updated===1?'':'s'} ✦`:`Applied to ${d.updated} page draft${d.updated===1?'':'s'}`);
+  await loadPagesSoft();
+  if(currentPage) openPage(currentPage);
+}
+$('#socialDraft').onclick=()=>applySocial(false);
+$('#socialPublish').onclick=()=>{
+  if(confirm('Apply these links to every page and publish immediately?')) applySocial(true);
 };
 
 /* ---------- URL mode (framework/slot pages) ---------- */
@@ -568,7 +733,8 @@ function paletteActions(){
     {label:'Publish page',k:'',run:publish},
     {label:'Preview live page',k:'',run:()=>window.open('/'+currentPage,'_blank')},
     {label:'New page…',k:'',run:()=>$('#newPageBtn').click()},
-    {label:'Edit SEO…',k:'',run:()=>$('#seoBtn').click()},
+    {label:'Edit SEO & share preview…',k:'',run:()=>$('#seoBtn').click()},
+    {label:'Social & links…',k:'',run:()=>$('#socialBtn').click()},
     {label:'Undo',k:'⌘Z',run:()=>editorCmd('ospace-undo')},
     {label:'Sign out',k:'',run:()=>$('#logoutBtn').click()},
   ];

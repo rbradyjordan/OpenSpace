@@ -40,7 +40,7 @@ After adding env vars, **redeploy** (env changes don't apply to existing deploym
 
 1. Copy into the target repo root, preserving paths:
    ```
-   api/            (all 6 files)
+   api/            (all 7 files)
    admin/index.html
    assets/editor.js
    vercel.json     (merge "rewrites" if one exists)
@@ -86,6 +86,7 @@ The `install.sh` in this folder automates step 1: `./install.sh /path/to/site`
 | `api/pages.js` | Auth-gated page CRUD. GET: list pages / read draft/published HTML / `?history=` version list. POST actions: `save`, `publish`, `restore`, `discard-draft`, `revert`, `create`, `delete`. Saves auto-snapshot history (25 kept, ≥1min apart) |
 | `api/serve.js` | PUBLIC. Serves every page request: published Blob override → fallback to repo file. Wired by vercel.json rewrites |
 | `api/upload.js` | Auth-gated media. POST raw body `?name=` → Blob `media/`; GET lists library; DELETE removes |
+| `api/social.js` | Social & Links manager: profile list stored at `config/social.json` in Blob; 'apply' rewrites the header/footer anchor blocks of every page server-side. NOTE: its regexes target the `.h-right`/`.h-book`/`.f-social` class names — adapt `applyToHtml()` if the site's markup differs |
 | `api/content.js` | Slot mode for framework sites. Draft/published JSON per path key. GET is public + CORS for hydration |
 | `admin/index.html` | The Studio shell: login, page list w/ status pills, iframe artboard, device widths, save-state indicator, autosave (3s debounce), toasts, ⌘K palette, History modal, SEO modal, "Edit a URL" slot mode |
 | `assets/editor.js` | The overlay editor injected into the iframe (~1k lines). All editor UI carries `data-ospace` |

@@ -38,7 +38,7 @@ if [ "$MODE" = "--nextjs" ]; then
   echo "     click 'Edit a URL (slots)' and enter the page path (e.g. / )."
 else
   mkdir -p "$DEST/api" "$DEST/admin" "$DEST/assets"
-  cp "$SRC/api/_lib.js" "$SRC/api/login.js" "$SRC/api/pages.js" "$SRC/api/upload.js" "$SRC/api/serve.js" "$SRC/api/content.js" "$DEST/api/"
+  cp "$SRC/api/_lib.js" "$SRC/api/login.js" "$SRC/api/pages.js" "$SRC/api/upload.js" "$SRC/api/serve.js" "$SRC/api/content.js" "$SRC/api/social.js" "$DEST/api/"
   cp "$SRC/admin/index.html" "$DEST/admin/index.html"
   cp "$SRC/assets/editor.js" "$DEST/assets/editor.js"
   if [ ! -f "$DEST/package.json" ]; then
