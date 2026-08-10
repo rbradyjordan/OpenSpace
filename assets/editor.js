@@ -849,12 +849,19 @@
 
   /* ---- ghost (grid destination preview) ---- */
   let ghost = null;
+  function colLine(ctx, line) {
+    // px offset of a column line, extrapolating uniformly beyond the explicit tracks
+    const pitch = ctx.cols[0] + ctx.colGap;
+    if (line < 1) return (line - 1) * pitch;
+    let acc = 0;
+    for (let i = 0; i < Math.min(line - 1, ctx.nCols); i++) acc += ctx.cols[i] + ctx.colGap;
+    if (line - 1 > ctx.nCols) acc += (line - 1 - ctx.nCols) * pitch;
+    return acc;
+  }
   function cellRect(ctx, a) {
     const pr = ctx.parent.getBoundingClientRect();
-    let left = 0;
-    for (let i = 0; i < a.c1 - 1; i++) left += ctx.cols[i] + ctx.colGap;
-    let width = -ctx.colGap;
-    for (let i = a.c1 - 1; i < Math.min(a.c2 - 1, ctx.nCols); i++) width += ctx.cols[i] + ctx.colGap;
+    const left = colLine(ctx, a.c1);
+    const width = colLine(ctx, a.c2) - left - ctx.colGap;
     const top = (a.r1 - 1) * (ctx.rowH + ctx.rowGap);
     const height = (a.r2 - a.r1) * (ctx.rowH + ctx.rowGap) - ctx.rowGap;
     return {
@@ -1072,8 +1079,8 @@
         if (d < best) { best = d; c1 = i + 1; }
         if (i < ctxU.nCols) acc += ctxU.cols[i] + ctxU.colGap;
       }
-      c1 = Math.min(Math.max(1, c1), ctxU.nCols + 1 - w);
-      const r1 = Math.max(1, Math.round(relTop / (ctxU.rowH + ctxU.rowGap)) + 1);
+      c1 = Math.min(Math.max(-1, c1), ctxU.nCols + 3 - w);
+      const r1 = Math.max(-1, Math.round(relTop / (ctxU.rowH + ctxU.rowGap)) + 1);
       const area = { r1, c1, r2: r1 + h, c2: c1 + w };
       gd.gridTarget = { ctx: ctxU, area };
       if (!ghost) showGhost(ctxU, area);
@@ -1160,7 +1167,7 @@
     const isMedia = el.tagName === 'IMG' || el.tagName === 'VIDEO';
     const isSection = el.parentElement === doc.body;
     if (!ctx && !isMedia && !isSection) return;
-    const specs = ctx ? [['se','nwse'],['e','ew'],['s','ns']] : isMedia ? [['se','nwse']] : [['s','ns']];
+    const specs = (ctx || isMedia) ? [['se','nwse'],['e','ew'],['s','ns']] : [['s','ns']];
     const r = el.getBoundingClientRect();
     specs.forEach(([pos]) => {
       const h = doc.createElement('div');
@@ -1179,15 +1186,24 @@
           if (ctx) {
             const cell = cellFromPoint(ctx, ev.clientX, ev.clientY);
             const a = { ...areaOf(el) };
-            if (pos === 'se' || pos === 'e') a.c2 = Math.min(Math.max(cell.col + 1, start.area.c1 + 1), ctx.nCols + 1);
+            if (pos === 'se' || pos === 'e') a.c2 = Math.min(Math.max(cell.col + 1, start.area.c1 + 1), ctx.nCols + 3);
             if (pos === 'se' || pos === 's') a.r2 = Math.max(cell.row + 1, start.area.r1 + 1);
+            if (isMedia && (pos === 'se' || pos === 's')) {
+              // make row-span changes visibly resize the media
+              el.style.height = '100%';
+              if (!el.style.objectFit) el.style.objectFit = 'cover';
+            }
             setArea(el, a);
             updatePosBadge(el, a);
           } else if (isMedia) {
-            const w = Math.max(40, start.w + (ev.clientX - start.x));
-            el.style.width = Math.round(w) + 'px';
-            el.style.maxWidth = 'none';
-            el.style.height = 'auto';
+            if (pos === 'se' || pos === 'e') {
+              el.style.width = Math.round(Math.max(40, start.w + (ev.clientX - start.x))) + 'px';
+              el.style.maxWidth = 'none';
+            }
+            if (pos === 's') {
+              el.style.height = Math.round(Math.max(40, start.h + (ev.clientY - start.y))) + 'px';
+              if (!el.style.objectFit) el.style.objectFit = 'cover';
+            } else if (pos === 'e') el.style.height = 'auto';
           } else {
             el.style.minHeight = Math.round(Math.max(40, start.minH + (ev.clientY - start.y))) + 'px';
           }

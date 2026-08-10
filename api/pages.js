@@ -185,7 +185,9 @@ module.exports = async (req, res) => {
           (await blobReadText(`pages/published/${page}`)) !== null;
         if (exists) return res.status(409).json({ error: 'page already exists' });
         let html;
-        if (body.cloneFrom && PAGE_NAME_RE.test(body.cloneFrom)) {
+        if (body.html) {
+          html = String(body.html);
+        } else if (body.cloneFrom && PAGE_NAME_RE.test(body.cloneFrom)) {
           html =
             (await blobReadText(`pages/draft/${body.cloneFrom}`)) ||
             (await blobReadText(`pages/published/${body.cloneFrom}`)) ||
