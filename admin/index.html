@@ -324,6 +324,26 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stro
   </div>
 </div>
 
+<div class="modal" id="onboardModal">
+  <div class="box" style="width:min(520px,94vw)">
+    <h3>Welcome — let&rsquo;s finish setup</h3>
+    <div class="msub">OpenSpace checks its own wiring. Green rows are done; fix the red ones and hit Re-check.</div>
+    <div id="obChecks" style="display:flex;flex-direction:column;gap:8px;margin:14px 0"></div>
+    <div id="obBlobHelp" style="display:none;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:.78rem;line-height:1.8;color:var(--dim)">
+      <b style="color:var(--text)">Connect storage (needed for saving &amp; publishing):</b><br>
+      1. Vercel project → <b>Storage</b> → Create Database → <b>Blob</b> → access: <b>Public</b><br>
+      2. Open the store → Quickstart → <b>.env.local</b> tab → copy the <code>BLOB_READ_WRITE_TOKEN</code> value<br>
+      3. Settings → Environment Variables → add <code>BLOB_READ_WRITE_TOKEN</code> with that value (all environments)<br>
+      4. Deployments → ⋯ → <b>Redeploy</b>, then come back and Re-check
+    </div>
+    <div class="row">
+      <button class="tbtn" id="obSkip">Don&rsquo;t show again</button>
+      <button class="tbtn" data-close>Later</button>
+      <button class="tbtn primary" id="obRecheck">Re-check</button>
+    </div>
+  </div>
+</div>
+
 <div id="palette">
   <div class="pbox">
     <input id="palInput" placeholder="Search pages &amp; actions…" spellcheck="false">
@@ -357,11 +377,49 @@ function saveState(state,label){
   $('#saveStateText').textContent=label;
 }
 
+/* ---------- onboarding ---------- */
+async function fetchHealth(){
+  try{ const r=await fetch('/api/health'); if(r.ok) return await r.json(); }catch{}
+  return null;
+}
+function obRow(ok,label){
+  return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid '+(ok?'rgba(52,214,139,.35)':'rgba(255,123,110,.35)')+';border-radius:9px;font-size:.82rem">'+
+    '<span style="font-size:1rem">'+(ok?'✅':'❌')+'</span><span>'+label+'</span></div>';
+}
+async function runOnboarding(force){
+  if(!force && localStorage.getItem('ospaceObDismissed')) return;
+  const h=await fetchHealth();
+  if(!h) return; // health endpoint unreachable (e.g. local static preview) — stay quiet
+  const allGood = h.editorPassword && h.sessionSecret && h.blob==='ok';
+  if(allGood && !force){ return; }
+  $('#obChecks').innerHTML =
+    obRow(h.editorPassword,'<b>EDITOR_PASSWORD</b> env var — your login password')+
+    obRow(h.sessionSecret,'<b>SESSION_SECRET</b> env var — signs your login cookie')+
+    obRow(h.blob==='ok', h.blob==='error' ? '<b>Blob storage</b> — token found but not working (recreate the store as <b>Public</b>)' : '<b>Blob storage</b> — where drafts, published pages &amp; uploads live');
+  $('#obBlobHelp').style.display = h.blob==='ok' ? 'none' : 'block';
+  $('#onboardModal').classList.add('on');
+}
+$('#obRecheck').onclick=async()=>{ await runOnboarding(true); toast('Re-checked'); };
+$('#obSkip').onclick=()=>{ localStorage.setItem('ospaceObDismissed','1'); $('#onboardModal').classList.remove('on'); };
+
 /* ---------- auth ---------- */
 async function checkSession(){
-  try{ const r=await fetch('/api/pages'); if(r.ok){ enter(); } }catch{}
+  try{ const r=await fetch('/api/pages'); if(r.ok){ enter(); return; } }catch{}
+  // not signed in — if the auth env vars are missing, show setup guidance instead of a doomed login box
+  const h=await fetchHealth();
+  if(h && (!h.editorPassword || !h.sessionSecret)){
+    const card=$('#loginCard');
+    card.querySelector('form').style.display='none';
+    const d=document.createElement('div');
+    d.style.cssText='text-align:left;font-size:.78rem;line-height:1.9;color:var(--dim);background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 16px';
+    d.innerHTML='<b style="color:var(--text)">Almost there — two env vars to add in Vercel:</b><br>'+
+      (h.editorPassword?'✅':'❌')+' <code>EDITOR_PASSWORD</code> — the password you\'ll log in with<br>'+
+      (h.sessionSecret?'✅':'❌')+' <code>SESSION_SECRET</code> — run <code>openssl rand -hex 32</code><br>'+
+      'Settings → Environment Variables → add both (all environments) → <b>Redeploy</b> → refresh this page.';
+    card.appendChild(d);
+  }
 }
-function enter(){ $('#login').style.display='none'; $('#app').classList.add('on'); loadPages(); }
+function enter(){ $('#login').style.display='none'; $('#app').classList.add('on'); loadPages(); runOnboarding(false); }
 $('#loginForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const btn=$('#loginBtn'); btn.classList.add('busy'); btn.textContent='Unlocking…';

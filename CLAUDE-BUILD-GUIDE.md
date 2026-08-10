@@ -32,7 +32,7 @@ scopes: Production, Preview, Development):
 |---|---|---|
 | `EDITOR_PASSWORD` | any password the user chooses | Plaintext compare (single-user). This is what they type at `/admin` |
 | `SESSION_SECRET` | long random string | Generate: `openssl rand -hex 32`. Signs session cookies (HMAC-SHA256) |
-| `BLOB_READ_WRITE_TOKEN` | **do not create manually** | Auto-added when you connect a Blob store: project → **Storage → Create → Blob → Connect** |
+| `BLOB_READ_WRITE_TOKEN` | copy from the store | Vercel's newer connect flow adds `BLOB_STORE_ID` instead of this token. Create the store (**Public** access!), open it → Quickstart → **.env.local** tab, copy the `BLOB_READ_WRITE_TOKEN` value, and add it manually. The code also accepts any `*BLOB_READ_WRITE_TOKEN`-suffixed name |
 
 After adding env vars, **redeploy** (env changes don't apply to existing deployments).
 
@@ -40,7 +40,7 @@ After adding env vars, **redeploy** (env changes don't apply to existing deploym
 
 1. Copy into the target repo root, preserving paths:
    ```
-   api/            (all 7 files)
+   api/            (all 8 files)
    admin/index.html
    assets/editor.js
    vercel.json     (merge "rewrites" if one exists)
@@ -87,6 +87,7 @@ The `install.sh` in this folder automates step 1: `./install.sh /path/to/site`
 | `api/serve.js` | PUBLIC. Serves every page request: published Blob override → fallback to repo file. Wired by vercel.json rewrites |
 | `api/upload.js` | Auth-gated media. POST raw body `?name=` → Blob `media/`; GET lists library; DELETE removes |
 | `api/social.js` | Social & Links manager: profile list stored at `config/social.json` in Blob; 'apply' rewrites the header/footer anchor blocks of every page server-side. NOTE: its regexes target the `.h-right`/`.h-book`/`.f-social` class names — adapt `applyToHtml()` if the site's markup differs |
+| `api/health.js` | PUBLIC setup-status booleans (env vars present? Blob working?) — drives the Studio's onboarding checklist and missing-env login guidance |
 | `api/content.js` | Slot mode for framework sites. Draft/published JSON per path key. GET is public + CORS for hydration |
 | `admin/index.html` | The Studio shell: login, page list w/ status pills, iframe artboard, device widths, save-state indicator, autosave (3s debounce), toasts, ⌘K palette, History modal, SEO modal, "Edit a URL" slot mode |
 | `assets/editor.js` | The overlay editor injected into the iframe (~1k lines). All editor UI carries `data-ospace` |

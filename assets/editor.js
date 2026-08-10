@@ -677,10 +677,7 @@
     h4(p, 'Background');
     colorField(p, 'Background color', el.style.backgroundColor ? rgbToHex(cs.backgroundColor) : '#000000', (v) => el.style.backgroundColor = v);
     btn(p, 'Clear background color', () => { pushUndo(); el.style.backgroundColor = ''; });
-    field(p, 'Background image URL', extractBgUrl(el.style.backgroundImage), (v) => {
-      el.style.backgroundImage = v ? `url("${v}")` : '';
-      if (v) { el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center'; }
-    });
+    bgMediaControls(p, el);
     h4(p, 'Spacing & Size');
     const r2 = doc.createElement('div'); r2.className = 'row2'; p.appendChild(r2);
     field(r2, 'Padding', el.style.padding, (v) => el.style.padding = v);
@@ -689,6 +686,101 @@
     rangeField(p, 'Corner radius', parseInt(el.style.borderRadius) || 0, 0, 60, 1, (v) => v + 'px', (v) => el.style.borderRadius = v + 'px');
     animControls(p, el);
     commonActions(p, el);
+  }
+
+  /* ---- background media: image/video cover + legibility overlay ---- */
+  const BG_MEDIA_CSS = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;pointer-events:none';
+  function bgParts(el) {
+    const kids = [...el.children];
+    return {
+      video: kids.find((c) => c.tagName === 'VIDEO' && c.hasAttribute('data-bgvideo')) || null,
+      img: kids.find((c) => c.tagName === 'IMG' && c.hasAttribute('data-bgimg')) || null,
+      overlay: kids.find((c) => c.hasAttribute && c.hasAttribute('data-bgoverlay')) || null,
+    };
+  }
+  function ensureBgHost(el) {
+    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    el.style.overflow = 'hidden';
+  }
+  function setBgMedia(el, kind, url) {
+    pushUndo();
+    ensureBgHost(el);
+    const parts = bgParts(el);
+    parts.video && parts.video.remove();
+    parts.img && parts.img.remove();
+    el.style.backgroundImage = '';
+    let node;
+    if (kind === 'video') {
+      node = doc.createElement('video');
+      node.setAttribute('data-bgvideo', '');
+      node.autoplay = true; node.muted = true; node.loop = true;
+      node.setAttribute('playsinline', '');
+      node.src = url;
+    } else {
+      node = doc.createElement('img');
+      node.setAttribute('data-bgimg', '');
+      node.alt = '';
+      node.src = url;
+    }
+    node.style.cssText = BG_MEDIA_CSS;
+    el.prepend(node);
+    if (kind === 'video') node.play && node.play().catch(() => {});
+    if (!bgParts(el).overlay) setOverlay(el, 0.4, '#000000', true);
+    markDirty();
+  }
+  function setOverlay(el, opacity, color, skipUndo) {
+    if (!skipUndo) pushUndo();
+    ensureBgHost(el);
+    let ov = bgParts(el).overlay;
+    if (opacity <= 0.01) { ov && ov.remove(); markDirty(); return; }
+    if (!ov) {
+      ov = doc.createElement('div');
+      ov.setAttribute('data-bgoverlay', '');
+      ov.style.cssText = 'position:absolute;inset:0;z-index:-1;pointer-events:none';
+      el.prepend(ov);
+    }
+    ov.style.background = color || '#000000';
+    ov.style.opacity = String(opacity);
+    markDirty();
+  }
+  function clearBgMedia(el) {
+    pushUndo();
+    const parts = bgParts(el);
+    parts.video && parts.video.remove();
+    parts.img && parts.img.remove();
+    parts.overlay && parts.overlay.remove();
+    el.style.backgroundImage = '';
+    markDirty();
+  }
+  function bgMediaControls(p, el) {
+    h4(p, 'Background Media');
+    const parts = bgParts(el);
+    const cssUrl = extractBgUrl(el.style.backgroundImage);
+    const cur = parts.video ? 'video' : (parts.img || cssUrl) ? 'image' : 'none';
+    const status = doc.createElement('div');
+    status.style.cssText = 'font-size:10.5px;color:var(--ospaceD);margin:2px 0 6px';
+    status.textContent = cur === 'none' ? 'No background media yet — pick an image or video below.' : 'Background: ' + cur;
+    p.appendChild(status);
+    const r = doc.createElement('div'); r.className = 'row2'; p.appendChild(r);
+    btn(r, IC.img + ' Image…', () => pickFile('image/*', async (f) => { const u = await upload(f); if (u) { setBgMedia(el, 'image', u); select(el); } }));
+    btn(r, IC.play + ' Video…', () => pickFile('video/*', async (f) => { const u = await upload(f); if (u) { setBgMedia(el, 'video', u); select(el); } }));
+    btn(p, IC.search + ' Choose from media library…', () => mediaLibrary((u) => {
+      setBgMedia(el, /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? 'video' : 'image', u);
+      select(el);
+    }));
+    field(p, 'Or paste a media URL', parts.video?.getAttribute('src') || parts.img?.getAttribute('src') || cssUrl, (v) => {
+      if (!v) { clearBgMedia(el); select(el); return; }
+      setBgMedia(el, /\.(mp4|webm|mov|m4v)(\?|$)/i.test(v) ? 'video' : 'image', v);
+      select(el);
+    });
+    rangeField(p, 'Overlay darkness (text legibility)', parts.overlay ? parseFloat(parts.overlay.style.opacity || 0) : 0, 0, 0.9, 0.05,
+      (v) => Math.round(v * 100) + '%',
+      (v) => setOverlay(el, parseFloat(v), bgParts(el).overlay?.style.background || '#000000', true));
+    colorField(p, 'Overlay color', '#000000', (v) => {
+      const o = bgParts(el).overlay;
+      setOverlay(el, o ? parseFloat(o.style.opacity || 0.4) : 0.4, v, true);
+    });
+    if (cur !== 'none') btn(p, 'Remove background media', () => { clearBgMedia(el); select(el); }, 'red');
   }
 
   /* ---- entrance animation + hover controls ---- */
