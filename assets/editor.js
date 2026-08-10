@@ -142,13 +142,11 @@
   body.ospace-panel-open{margin-right:320px}
 
   /* ============ fluid grid engine (Squarespace-style) ============ */
-  .ospace-lattice{position:absolute;z-index:2147482800;pointer-events:none;
-    background-image:
-      repeating-linear-gradient(to right, rgba(255,255,255,.13) 0 1px, transparent 1px var(--cellw)),
-      repeating-linear-gradient(to bottom, rgba(255,255,255,.13) 0 1px, transparent 1px var(--cellh));
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);
-    background-color:rgba(10,12,15,.25);
-    border-radius:4px;animation:ospaceFade .12s}
+  .ospace-lattice{position:absolute;z-index:2147482800;pointer-events:none;animation:ospaceFade .15s}
+  .ospace-insert{position:absolute;z-index:2147482802;height:4px;background:var(--ospaceB);border-radius:3px;pointer-events:none;box-shadow:0 0 12px rgba(90,162,232,.8);transition:left .07s linear,top .07s linear,width .07s linear}
+  .ospace-insert::before{content:"";position:absolute;left:-5px;top:-3px;width:10px;height:10px;border-radius:50%;border:2.5px solid var(--ospaceB);background:#0e1116}
+  .ospace-drop-parent{outline:2px dashed rgba(90,162,232,.55) !important;outline-offset:-2px}
+  [style*="grid-area"]{cursor:grab}
   .ospace-ghost{position:absolute;z-index:2147482801;background:rgba(90,162,232,.16);border:1.5px dashed rgba(90,162,232,.85);border-radius:6px;pointer-events:none;transition:left .08s linear,top .08s linear,width .08s linear,height .08s linear}
   .ospace-lifted{opacity:.6;pointer-events:none;position:relative;z-index:60;transition:none !important;cursor:grabbing !important;will-change:transform}
   .ospace-handle{touch-action:none}
@@ -534,24 +532,8 @@
 
   /* ================= drag & drop: grid items ================= */
   function bindGridDrag() {
-    doc.querySelectorAll('.fgrid img, .others-grid img, .trusted-row img').forEach((img) => {
-      if (img.style.gridArea) { img.draggable = false; return; } // fluid grid engine handles these
-      img.draggable = true;
-      img.ondragstart = (e) => { e.dataTransfer.setData('text/plain', 'ospace-grid-item'); window.__ospaceDragItem = img; img.classList.add('ospace-dragging'); };
-      img.ondragend = () => { img.classList.remove('ospace-dragging'); window.__ospaceDragItem = null; };
-      img.ondragover = (e) => { if (window.__ospaceDragItem && window.__ospaceDragItem !== img) e.preventDefault(); };
-      img.ondrop = (e) => {
-        const src = window.__ospaceDragItem;
-        if (!src || src === img) return;
-        e.preventDefault(); e.stopPropagation();
-        pushUndo();
-        const a = src.getAttribute('style'), b = img.getAttribute('style');
-        if (b) src.setAttribute('style', b); else src.removeAttribute('style');
-        if (a) img.setAttribute('style', a); else img.removeAttribute('style');
-        const tmp = doc.createComment('ospace-swap');
-        src.replaceWith(tmp); img.replaceWith(src); tmp.replaceWith(img);
-      };
-    });
+    // native image dragging steals the pointer stream — the universal engine owns dragging now
+    doc.querySelectorAll('img').forEach((img) => { img.draggable = false; });
   }
 
   /* ================= side panel ================= */
@@ -763,11 +745,33 @@
   function showLattice(ctx) {
     hideLattice();
     const pr = ctx.parent.getBoundingClientRect();
-    lattice = doc.createElement('div');
+    const w = pr.width - ctx.padL * 2, h = pr.height - ctx.padT * 2;
+    lattice = doc.createElement('canvas');
     lattice.className = 'ospace-lattice';
     lattice.dataset.ospace = '1';
-    const cellw = ctx.cols[0] + ctx.colGap, cellh = ctx.rowH + ctx.rowGap;
-    lattice.style.cssText += `;left:${pr.left + scrollX + ctx.padL}px;top:${pr.top + scrollY + ctx.padT}px;width:${pr.width - ctx.padL * 2}px;height:${pr.height - ctx.padT * 2}px;--cellw:${cellw}px;--cellh:${cellh}px`;
+    const dpr = devicePixelRatio || 1;
+    lattice.width = w * dpr; lattice.height = h * dpr;
+    lattice.style.cssText = `left:${pr.left + scrollX + ctx.padL}px;top:${pr.top + scrollY + ctx.padT}px;width:${w}px;height:${h}px`;
+    const g = lattice.getContext('2d');
+    g.scale(dpr, dpr);
+    const gapX = ctx.colGap, gapY = ctx.rowGap, rh = ctx.rowH;
+    const rows = Math.ceil(h / (rh + gapY));
+    g.fillStyle = 'rgba(255,255,255,.055)';
+    g.strokeStyle = 'rgba(255,255,255,.14)';
+    g.lineWidth = 1;
+    let y = 0;
+    for (let r = 0; r < rows; r++) {
+      let x = 0;
+      for (let c = 0; c < ctx.nCols; c++) {
+        const cw = ctx.cols[c];
+        const rad = Math.min(4, cw / 4, rh / 4);
+        g.beginPath();
+        g.roundRect(x + .5, y + .5, Math.max(cw - 1, 2), rh - 1, rad);
+        g.fill(); g.stroke();
+        x += cw + gapX;
+      }
+      y += rh + gapY;
+    }
     doc.body.appendChild(lattice);
     posBadge = doc.createElement('div');
     posBadge.className = 'ospace-posbadge';
@@ -783,10 +787,10 @@
     const r = el.getBoundingClientRect();
     posBadge.textContent = `${a.c2 - a.c1} × ${a.r2 - a.r1} cells`;
     posBadge.style.left = r.left + 'px';
-    posBadge.style.top = (r.top - 24) + 'px';
+    posBadge.style.top = (r.top - 26) + 'px';
   }
 
-  /* ---- drag to move: lift + ghost destination preview (Fluid Engine model) ---- */
+  /* ---- ghost (grid destination preview) ---- */
   let ghost = null;
   function cellRect(ctx, a) {
     const pr = ctx.parent.getBoundingClientRect();
@@ -826,71 +830,159 @@
   }
   function hideGhost() { ghost && ghost.remove(); ghost = null; }
 
-  let gd = null;
+  /* ---- insertion indicator (flow destination preview) ---- */
+  let insertLine = null, dropParentEl = null;
+  function showInsert(rect) {
+    if (!insertLine) {
+      insertLine = doc.createElement('div');
+      insertLine.className = 'ospace-insert';
+      insertLine.dataset.ospace = '1';
+      doc.body.appendChild(insertLine);
+    }
+    insertLine.style.left = (rect.left + scrollX) + 'px';
+    insertLine.style.top = (rect.y + scrollY - 2) + 'px';
+    insertLine.style.width = rect.width + 'px';
+  }
+  function hideInsert() {
+    insertLine && insertLine.remove(); insertLine = null;
+    dropParentEl && dropParentEl.classList.remove('ospace-drop-parent');
+    dropParentEl = null;
+  }
+  function markDropParent(p) {
+    if (dropParentEl === p) return;
+    dropParentEl && dropParentEl.classList.remove('ospace-drop-parent');
+    dropParentEl = p;
+    p && p !== doc.body && p.classList.add('ospace-drop-parent');
+  }
+  function findDropPoint(x, y, dragEl) {
+    const t = doc.elementFromPoint(x, y);
+    if (!t || isEditorUI(t) || t === doc.documentElement) return null;
+    if (dragEl.contains(t)) return null;
+    if (t === doc.body) {
+      const secs = [...doc.body.children].filter((c) => !c.dataset.ospace && c !== dragEl && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE');
+      const last = secs[secs.length - 1];
+      if (!last) return null;
+      const r = last.getBoundingClientRect();
+      return { parent: doc.body, before: null, line: { left: r.left, width: r.width, y: r.bottom } };
+    }
+    let cand = t;
+    while (cand.parentElement && cand.parentElement !== doc.body && getComputedStyle(cand).display === 'inline') cand = cand.parentElement;
+    const parent = cand.parentElement;
+    if (!parent || isEditorUI(parent)) return null;
+    const r = cand.getBoundingClientRect();
+    const beforeIt = y < r.top + r.height / 2;
+    return {
+      parent,
+      before: beforeIt ? cand : cand.nextElementSibling,
+      line: { left: r.left, width: r.width, y: beforeIt ? r.top : r.bottom },
+    };
+  }
+
+  /* ---- universal drag engine: everything lifts ---- */
+  const BLOCK_SEL = 'img,video,h1,h2,h3,h4,h5,h6,p,ul,ol,blockquote,figure,table,a,button';
+  function blockFor(target) {
+    if (!target.closest) return null;
+    const gridEl = target.closest('[style*="grid-area"]');
+    if (gridEl && gridCtx(gridEl)) return gridEl;
+    const el = target.closest(BLOCK_SEL);
+    if (el) return el;
+    // generic boxes (divs/spans): lift the nearest ancestor that sits among siblings,
+    // so grabbing a text box moves that box — not its whole section
+    let n = target;
+    while (n && n !== doc.body) {
+      const p = n.parentElement;
+      if (!p) break;
+      if (p === doc.body) return n;
+      if (p.children.length > 1) return n;
+      n = p;
+    }
+    return topSection(target);
+  }
+  let gd = null, rafPending = false, lastMove = null, lastFrame = 0;
   doc.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || editingEl || isEditorUI(e.target)) return;
-    const el = e.target.closest && e.target.closest('[style*="grid-area"]');
-    const target = el && el.parentElement ? el : e.target;
-    const ctx = gridCtx(target);
-    if (!ctx) return;
+    const el = blockFor(e.target);
+    if (!el || el === doc.body) return;
+    const ctx = gridCtx(el);
     gd = {
-      el: target, ctx,
-      startArea: areaOf(target),
-      grab: cellFromPoint(ctx, e.clientX, e.clientY),
+      el, ctx, mode: ctx ? 'grid' : 'flow',
+      startArea: ctx ? areaOf(el) : null,
+      grab: ctx ? cellFromPoint(ctx, e.clientX, e.clientY) : null,
       startXY: { x: e.clientX, y: e.clientY },
-      moved: false, pushed: false, target: null,
+      moved: false, pushed: false, target: null, drop: null,
     };
   }, true);
 
+  function dragFrame() {
+    rafPending = false;
+    if (!gd || !gd.moved || !lastMove) return;
+    const e = lastMove;
+    const dx = e.clientX - gd.startXY.x, dy = e.clientY - gd.startXY.y;
+    gd.el.style.transform = `translate(${dx}px, ${dy}px)`;
+    if (gd.mode === 'grid') {
+      const cell = cellFromPoint(gd.ctx, e.clientX, e.clientY);
+      const a = gd.startArea;
+      const w = a.c2 - a.c1, h = a.r2 - a.r1;
+      let c1 = cell.col - (gd.grab.col - a.c1);
+      let r1 = cell.row - (gd.grab.row - a.r1);
+      c1 = Math.min(Math.max(1, c1), gd.ctx.nCols + 1 - w);
+      r1 = Math.max(1, r1);
+      gd.target = { r1, c1, r2: r1 + h, c2: c1 + w };
+      moveGhost(gd.ctx, gd.target);
+    } else {
+      const drop = findDropPoint(e.clientX, e.clientY, gd.el);
+      gd.drop = drop;
+      if (drop) { showInsert(drop.line); markDropParent(drop.parent); }
+      else { hideInsert(); }
+    }
+    if (e.clientY < 70) scrollBy(0, -12);
+    if (e.clientY > innerHeight - 70) scrollBy(0, 12);
+  }
+
   doc.addEventListener('pointermove', (e) => {
     if (!gd) return;
-    const dx = e.clientX - gd.startXY.x, dy = e.clientY - gd.startXY.y;
     if (!gd.moved) {
-      if (Math.hypot(dx, dy) < 5) return;
+      if (Math.hypot(e.clientX - gd.startXY.x, e.clientY - gd.startXY.y) < 5) return;
       gd.moved = true;
       if (!gd.pushed) { pushUndo(); gd.pushed = true; }
       try { doc.getSelection().removeAllRanges(); } catch {}
       gd.el.classList.add('ospace-lifted');
-      showLattice(gd.ctx);
-      showGhost(gd.ctx, gd.startArea);
-      hideToolbar(); hideBadge(); closePanel(); clearHandles();
+      if (gd.mode === 'grid') { showLattice(gd.ctx); showGhost(gd.ctx, gd.startArea); }
+      hideToolbar(); hideBadge(); closePanel(); clearHandles(); hideAddLines();
+      secTools.style.display = 'none';
     }
     e.preventDefault();
-    // the lifted block rides the pointer 1:1…
-    gd.el.style.transform = `translate(${dx}px, ${dy}px)`;
-    // …while the ghost previews the snapped destination
-    const cell = cellFromPoint(gd.ctx, e.clientX, e.clientY);
-    const a = gd.startArea;
-    const w = a.c2 - a.c1, h = a.r2 - a.r1;
-    let c1 = cell.col - (gd.grab.col - a.c1);
-    let r1 = cell.row - (gd.grab.row - a.r1);
-    c1 = Math.min(Math.max(1, c1), gd.ctx.nCols + 1 - w);
-    r1 = Math.max(1, r1);
-    gd.target = { r1, c1, r2: r1 + h, c2: c1 + w };
-    moveGhost(gd.ctx, gd.target);
-    // edge auto-scroll
-    if (e.clientY < 70) scrollBy(0, -12);
-    if (e.clientY > innerHeight - 70) scrollBy(0, 12);
+    lastMove = e;
+    // time-throttled direct frame (rAF can stall in background panes); rAF only coalesces bursts
+    const now = performance.now();
+    if (now - lastFrame > 16) { lastFrame = now; dragFrame(); }
+    else if (!rafPending) { rafPending = true; requestAnimationFrame(() => { lastFrame = performance.now(); dragFrame(); }); }
   });
 
-  function endGridDrag(commit) {
+  function endUniversalDrag(commit) {
     if (!gd) return;
     if (gd.moved) {
       gd.el.style.transform = '';
       gd.el.classList.remove('ospace-lifted');
-      if (commit && gd.target) setArea(gd.el, gd.target);
-      hideGhost(); hideLattice();
+      if (commit) {
+        if (gd.mode === 'grid' && gd.target) setArea(gd.el, gd.target);
+        if (gd.mode === 'flow' && gd.drop && gd.drop.parent) {
+          try { gd.drop.parent.insertBefore(gd.el, gd.drop.before); } catch {}
+        }
+      }
+      hideGhost(); hideLattice(); hideInsert();
       markDirty();
       window.__ospaceJustDragged = true;
       const el = gd.el;
       setTimeout(() => select(el, false), 0);
     }
-    gd = null;
+    gd = null; lastMove = null;
   }
-  doc.addEventListener('pointerup', () => endGridDrag(true));
-  doc.addEventListener('pointercancel', () => endGridDrag(false));
-  // block touch scrolling only while a block is actually lifted
+  doc.addEventListener('pointerup', () => endUniversalDrag(true));
+  doc.addEventListener('pointercancel', () => endUniversalDrag(false));
   doc.addEventListener('touchmove', (e) => { if (gd && gd.moved) e.preventDefault(); }, { passive: false });
+  // native HTML5 drags (outside editor UI like the section rail handle) would hijack the pointer stream
+  doc.addEventListener('dragstart', (e) => { if (!isEditorUI(e.target)) e.preventDefault(); });
 
   /* ---- resize handles ---- */
   let handles = [];
@@ -963,8 +1055,34 @@
     return {
       video: kids.find((c) => c.tagName === 'VIDEO' && c.hasAttribute('data-bgvideo')) || null,
       img: kids.find((c) => c.tagName === 'IMG' && c.hasAttribute('data-bgimg')) || null,
-      overlay: kids.find((c) => c.hasAttribute && c.hasAttribute('data-bgoverlay')) || null,
+      overlay: el.querySelector(':scope > [data-bgoverlay], :scope > * > [data-bgoverlay]') || null,
     };
+  }
+  // Where should the legibility overlay live for THIS element?
+  // 'container' — the section keeps its background in an absolute wrapper div
+  //               (.gbg/.bg pattern): overlay goes INSIDE it, above the media.
+  // 'cover'     — a full-bleed in-flow/absolute media child at z>=0: overlay as
+  //               sibling at z:1 (content in such sections is positioned above).
+  // 'plain'     — our data-bg model or CSS backgrounds: sibling at z:-1.
+  function overlayStrategy(el) {
+    const er = el.getBoundingClientRect();
+    for (const c of el.children) {
+      if (c.hasAttribute && c.hasAttribute('data-bgoverlay')) continue;
+      if (c.tagName === 'DIV' && c.querySelector && c.querySelector('img,video')) {
+        const cs = getComputedStyle(c);
+        if (cs.position === 'absolute') {
+          const r = c.getBoundingClientRect();
+          if (Math.abs(r.width - er.width) < 6 && Math.abs(r.height - er.height) < 6) return { type: 'container', node: c };
+        }
+      }
+    }
+    for (const c of el.children) {
+      if ((c.tagName === 'VIDEO' || c.tagName === 'IMG') && !c.hasAttribute('data-bgvideo') && !c.hasAttribute('data-bgimg')) {
+        const r = c.getBoundingClientRect();
+        if (r.width > er.width * .95 && r.height > er.height * .95) return { type: 'cover' };
+      }
+    }
+    return { type: 'plain' };
   }
   function ensureBgHost(el) {
     if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
@@ -1001,11 +1119,16 @@
     ensureBgHost(el);
     let ov = bgParts(el).overlay;
     if (opacity <= 0.01) { ov && ov.remove(); markDirty(); return; }
+    const strat = overlayStrategy(el);
+    // re-home a mis-placed overlay if the strategy changed
+    if (ov && ((strat.type === 'container' && ov.parentElement !== strat.node) ||
+               (strat.type !== 'container' && ov.parentElement !== el))) { ov.remove(); ov = null; }
     if (!ov) {
       ov = doc.createElement('div');
       ov.setAttribute('data-bgoverlay', '');
-      ov.style.cssText = 'position:absolute;inset:0;z-index:-1;pointer-events:none';
-      el.prepend(ov);
+      ov.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+      if (strat.type === 'container') strat.node.appendChild(ov);
+      else { ov.style.zIndex = strat.type === 'cover' ? '1' : '-1'; el.prepend(ov); }
     }
     ov.style.background = color || '#000000';
     ov.style.opacity = String(opacity);
@@ -1570,7 +1693,7 @@
     return el;
   }
   function cleanupUI() {
-    hideToolbar(); closePanel(); hideBadge(); hideCrumb(); hideAddLines(); closeFind(); clearHandles(); hideLattice(); hideGhost();
+    hideToolbar(); closePanel(); hideBadge(); hideCrumb(); hideAddLines(); closeFind(); clearHandles(); hideLattice(); hideGhost(); hideInsert();
     secTools.style.display = 'none';
     selected = null; editingEl = null;
   }
