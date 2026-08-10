@@ -43,6 +43,10 @@
   css.dataset.ospace = '1';
   css.textContent = `
   :root{--ospaceA:#f0523d;--ospaceB:#5aa2e8;--ospaceG:#34d68b;--ospaceP:#13161c;--ospaceP2:#191d24;--ospaceL:#252a33;--ospaceL2:#323945;--ospaceT:#eef1f5;--ospaceD:#8b94a1}
+  /* editing surface: selection off (design-tool behavior); re-enabled inside text editing */
+  body{-webkit-user-select:none;user-select:none}
+  [contenteditable="true"],[contenteditable="true"] *{-webkit-user-select:text !important;user-select:text !important;cursor:text}
+  img:not([draggable="true"]),video{-webkit-user-drag:none}
   .ospace-hover{outline:1.5px dashed rgba(90,162,232,.85) !important;outline-offset:-1.5px}
   .ospace-selected{outline:2px solid var(--ospaceA) !important;outline-offset:-2px}
   .ospace-sec-hover{outline:1.5px solid rgba(52,214,139,.55) !important;outline-offset:-1.5px}
@@ -797,6 +801,7 @@
       if (cell.row === gd.grab.row && cell.col === gd.grab.col) return;
       gd.moved = true;
       if (!gd.pushed) { pushUndo(); gd.pushed = true; }
+      try { doc.getSelection().removeAllRanges(); } catch {}
       gd.el.classList.add('ospace-griditem-dragging');
       showLattice(gd.ctx);
       hideToolbar(); hideBadge(); closePanel();
@@ -845,6 +850,7 @@
       handles.push(h);
       h.addEventListener('pointerdown', (e) => {
         e.preventDefault(); e.stopPropagation();
+        try { doc.getSelection().removeAllRanges(); } catch {}
         pushUndo();
         const start = { x: e.clientX, y: e.clientY, area: ctx ? areaOf(el) : null, w: r.width, h: r.height, minH: parseFloat(getComputedStyle(el).minHeight) || r.height };
         if (ctx) showLattice(ctx);
