@@ -149,7 +149,9 @@
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);
     background-color:rgba(10,12,15,.25);
     border-radius:4px;animation:ospaceFade .12s}
-  .ospace-griditem-dragging{opacity:.75;outline:2px solid var(--ospaceB) !important;cursor:grabbing !important}
+  .ospace-ghost{position:absolute;z-index:2147482801;background:rgba(90,162,232,.16);border:1.5px dashed rgba(90,162,232,.85);border-radius:6px;pointer-events:none;transition:left .08s linear,top .08s linear,width .08s linear,height .08s linear}
+  .ospace-lifted{opacity:.6;pointer-events:none;position:relative;z-index:60;transition:none !important;cursor:grabbing !important;will-change:transform}
+  .ospace-handle{touch-action:none}
   .ospace-handle{position:fixed;z-index:2147483005;width:12px;height:12px;background:#fff;border:2px solid var(--ospaceB);border-radius:3px;cursor:nwse-resize;box-shadow:0 2px 8px rgba(0,0,0,.5)}
   .ospace-handle.e{cursor:ew-resize;border-radius:3px}
   .ospace-handle.s{cursor:ns-resize}
@@ -303,6 +305,7 @@
     if (sec) sec.classList.remove('ospace-sec-hover');
   });
   doc.addEventListener('click', (e) => {
+    if (window.__ospaceJustDragged) { window.__ospaceJustDragged = false; e.preventDefault(); e.stopPropagation(); return; }
     if (isEditorUI(e.target)) return;
     const a = e.target.closest && e.target.closest('a');
     if (a && !a.isContentEditable) e.preventDefault();
@@ -783,30 +786,79 @@
     posBadge.style.top = (r.top - 24) + 'px';
   }
 
-  /* ---- drag to move ---- */
-  let gd = null; // {el, ctx, startArea, grabRow, grabCol, moved, pushed}
+  /* ---- drag to move: lift + ghost destination preview (Fluid Engine model) ---- */
+  let ghost = null;
+  function cellRect(ctx, a) {
+    const pr = ctx.parent.getBoundingClientRect();
+    let left = 0;
+    for (let i = 0; i < a.c1 - 1; i++) left += ctx.cols[i] + ctx.colGap;
+    let width = -ctx.colGap;
+    for (let i = a.c1 - 1; i < Math.min(a.c2 - 1, ctx.nCols); i++) width += ctx.cols[i] + ctx.colGap;
+    const top = (a.r1 - 1) * (ctx.rowH + ctx.rowGap);
+    const height = (a.r2 - a.r1) * (ctx.rowH + ctx.rowGap) - ctx.rowGap;
+    return {
+      left: pr.left + scrollX + ctx.padL + left,
+      top: pr.top + scrollY + ctx.padT + top,
+      width: Math.max(width, 8),
+      height: Math.max(height, 8),
+    };
+  }
+  function showGhost(ctx, a) {
+    hideGhost();
+    ghost = doc.createElement('div');
+    ghost.className = 'ospace-ghost';
+    ghost.dataset.ospace = '1';
+    doc.body.appendChild(ghost);
+    moveGhost(ctx, a);
+  }
+  function moveGhost(ctx, a) {
+    if (!ghost) return;
+    const r = cellRect(ctx, a);
+    ghost.style.left = r.left + 'px';
+    ghost.style.top = r.top + 'px';
+    ghost.style.width = r.width + 'px';
+    ghost.style.height = r.height + 'px';
+    if (posBadge) {
+      posBadge.textContent = `${a.c2 - a.c1} × ${a.r2 - a.r1} cells`;
+      posBadge.style.left = (r.left - scrollX) + 'px';
+      posBadge.style.top = (r.top - scrollY - 26) + 'px';
+    }
+  }
+  function hideGhost() { ghost && ghost.remove(); ghost = null; }
+
+  let gd = null;
   doc.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || editingEl || isEditorUI(e.target)) return;
     const el = e.target.closest && e.target.closest('[style*="grid-area"]');
     const target = el && el.parentElement ? el : e.target;
     const ctx = gridCtx(target);
     if (!ctx) return;
-    const cell = cellFromPoint(ctx, e.clientX, e.clientY);
-    gd = { el: target, ctx, startArea: areaOf(target), grab: cell, moved: false, pushed: false };
+    gd = {
+      el: target, ctx,
+      startArea: areaOf(target),
+      grab: cellFromPoint(ctx, e.clientX, e.clientY),
+      startXY: { x: e.clientX, y: e.clientY },
+      moved: false, pushed: false, target: null,
+    };
   }, true);
+
   doc.addEventListener('pointermove', (e) => {
     if (!gd) return;
+    const dx = e.clientX - gd.startXY.x, dy = e.clientY - gd.startXY.y;
     if (!gd.moved) {
-      const cell = cellFromPoint(gd.ctx, e.clientX, e.clientY);
-      if (cell.row === gd.grab.row && cell.col === gd.grab.col) return;
+      if (Math.hypot(dx, dy) < 5) return;
       gd.moved = true;
       if (!gd.pushed) { pushUndo(); gd.pushed = true; }
       try { doc.getSelection().removeAllRanges(); } catch {}
-      gd.el.classList.add('ospace-griditem-dragging');
+      gd.el.classList.add('ospace-lifted');
       showLattice(gd.ctx);
-      hideToolbar(); hideBadge(); closePanel();
+      showGhost(gd.ctx, gd.startArea);
+      hideToolbar(); hideBadge(); closePanel(); clearHandles();
     }
     e.preventDefault();
+    // the lifted block rides the pointer 1:1…
+    gd.el.style.transform = `translate(${dx}px, ${dy}px)`;
+    // …while the ghost previews the snapped destination
     const cell = cellFromPoint(gd.ctx, e.clientX, e.clientY);
     const a = gd.startArea;
     const w = a.c2 - a.c1, h = a.r2 - a.r1;
@@ -814,21 +866,31 @@
     let r1 = cell.row - (gd.grab.row - a.r1);
     c1 = Math.min(Math.max(1, c1), gd.ctx.nCols + 1 - w);
     r1 = Math.max(1, r1);
-    const next = { r1, c1, r2: r1 + h, c2: c1 + w };
-    setArea(gd.el, next);
-    updatePosBadge(gd.el, next);
+    gd.target = { r1, c1, r2: r1 + h, c2: c1 + w };
+    moveGhost(gd.ctx, gd.target);
+    // edge auto-scroll
+    if (e.clientY < 70) scrollBy(0, -12);
+    if (e.clientY > innerHeight - 70) scrollBy(0, 12);
   });
-  doc.addEventListener('pointerup', () => {
+
+  function endGridDrag(commit) {
     if (!gd) return;
     if (gd.moved) {
-      gd.el.classList.remove('ospace-griditem-dragging');
-      hideLattice();
+      gd.el.style.transform = '';
+      gd.el.classList.remove('ospace-lifted');
+      if (commit && gd.target) setArea(gd.el, gd.target);
+      hideGhost(); hideLattice();
       markDirty();
+      window.__ospaceJustDragged = true;
       const el = gd.el;
       setTimeout(() => select(el, false), 0);
     }
     gd = null;
-  });
+  }
+  doc.addEventListener('pointerup', () => endGridDrag(true));
+  doc.addEventListener('pointercancel', () => endGridDrag(false));
+  // block touch scrolling only while a block is actually lifted
+  doc.addEventListener('touchmove', (e) => { if (gd && gd.moved) e.preventDefault(); }, { passive: false });
 
   /* ---- resize handles ---- */
   let handles = [];
@@ -1508,7 +1570,7 @@
     return el;
   }
   function cleanupUI() {
-    hideToolbar(); closePanel(); hideBadge(); hideCrumb(); hideAddLines(); closeFind(); clearHandles(); hideLattice();
+    hideToolbar(); closePanel(); hideBadge(); hideCrumb(); hideAddLines(); closeFind(); clearHandles(); hideLattice(); hideGhost();
     secTools.style.display = 'none';
     selected = null; editingEl = null;
   }
