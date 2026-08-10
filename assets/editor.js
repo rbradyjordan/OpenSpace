@@ -180,6 +180,9 @@
   .ospace-ctx .div{height:1px;background:var(--ospaceL);margin:5px 9px}
   .ospace-ctx .sub{position:absolute;left:calc(100% - 4px);top:-7px;display:none;min-width:190px;background:rgba(19,22,28,.94);backdrop-filter:blur(20px);border:1px solid var(--ospaceL2);border-radius:12px;padding:6px;box-shadow:0 16px 50px rgba(0,0,0,.6)}
   .ospace-ctx .it:hover>.sub{display:block;animation:ospaceSpring .16s cubic-bezier(.34,1.56,.64,1)}
+  .ospace-ctx.flip .sub{left:auto;right:calc(100% - 4px)}
+  .ospace-spot{position:absolute;z-index:2147482803;border:2.5px dashed var(--ospaceB);border-radius:14px;background:rgba(90,162,232,.08);cursor:pointer;animation:ospaceFade .15s;display:flex;align-items:center;justify-content:center}
+  .ospace-spot span{background:var(--ospaceB);color:#06131f;font:600 11px Poppins;padding:5px 12px;border-radius:16px;pointer-events:none}
 
   /* template picker v3 — categories + live previews */
   .ospace-cats{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
@@ -200,6 +203,27 @@
   .ospace-elem-grid button:hover .ic{background:rgba(240,82,61,.18);color:var(--ospaceA)}
   `;
   doc.head.appendChild(css);
+
+  /* ---- editor light theme (driven by the Studio's toggle) ---- */
+  function applyEditorTheme(mode) {
+    let st = doc.getElementById('ospace-light-theme');
+    if (mode !== 'light') { st && st.remove(); return; }
+    if (st) return;
+    st = doc.createElement('style');
+    st.id = 'ospace-light-theme';
+    st.dataset.ospace = '1';
+    st.textContent = `
+    :root{--ospaceP:#f8f9fb;--ospaceP2:#eef0f4;--ospaceL:#d8dde3;--ospaceL2:#c3cad3;--ospaceT:#171b21;--ospaceD:#5a6470}
+    .ospace-toolbar,.ospace-sec-tools,.ospace-find,.ospace-ctx{background:rgba(250,251,253,.92) !important;box-shadow:0 12px 40px rgba(30,40,60,.22) !important}
+    .ospace-panel{background:rgba(250,251,253,.97) !important;box-shadow:0 20px 60px rgba(30,40,60,.25) !important}
+    .ospace-ctx .sub{background:rgba(250,251,253,.96) !important}
+    .ospace-box{background:#f8f9fb;box-shadow:0 24px 70px rgba(30,40,60,.3)}
+    .ospace-panel input[type=text],.ospace-panel input[type=number],.ospace-panel select,.ospace-find input{background:#fff !important}
+    .ospace-live-thumb{background:#e8eaee}
+    `;
+    doc.head.appendChild(st);
+  }
+  try { applyEditorTheme(localStorage.getItem('ospaceTheme') || 'dark'); } catch {}
 
   /* ============ shipped animation runtime (kept in serialized page) ============
      v2: entrance timing is tunable via CSS vars (--anim-dur/--anim-delay/--anim-ease)
@@ -271,8 +295,9 @@
     const clone = doc.documentElement.cloneNode(true);
     clone.querySelectorAll('[data-ospace]').forEach((n) => n.remove());
     clone.querySelectorAll('script[src*="editor.js"]').forEach((n) => n.remove());
+    clone.querySelectorAll('.ospace-lifted').forEach((n) => { n.style.transform = ''; });
     clone.querySelectorAll('*').forEach((n) => {
-      ['ospace-hover','ospace-selected','ospace-sec-hover','ospace-dragging','ospace-drop-above','ospace-drop-below','ospace-in','ospace-panel-open'].forEach((c) => n.classList && n.classList.remove(c));
+      ['ospace-hover','ospace-selected','ospace-sec-hover','ospace-dragging','ospace-drop-above','ospace-drop-below','ospace-in','ospace-panel-open','ospace-lifted','ospace-griditem-dragging','ospace-drop-parent'].forEach((c) => n.classList && n.classList.remove(c));
       if (n.classList && !n.classList.length) n.removeAttribute('class');
       n.removeAttribute && (n.removeAttribute('contenteditable'), n.removeAttribute('draggable'));
     });
@@ -334,7 +359,7 @@
   }
 
   doc.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { if (gd) { endUniversalDrag(false); } closeCtx(); closeFind(); closeModals(); finishTextEdit(); deselect(); }
+    if (e.key === 'Escape') { if (gd) { endUniversalDrag(false); } closeCtx(); clearSpot(); closeFind(); closeModals(); finishTextEdit(); deselect(); }
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     if (mod && e.key.toLowerCase() === 'f') { e.preventDefault(); openFind(); }
@@ -386,9 +411,9 @@
 
   /* ================= text editing ================= */
   let editingEl = null;
-  function startTextEdit(el) {
+  function startTextEdit(el, skipUndo) {
     finishTextEdit();
-    pushUndo();
+    if (!skipUndo) pushUndo();
     editingEl = el;
     el.setAttribute('contenteditable', 'true');
     el.focus();
@@ -1644,8 +1669,31 @@
     { name: 'Spacer', icon: IC.spacer, html: '<div style="height:3rem"></div>' },
   ];
 
-  function openElements(target, where) {
-    const wrap = mkModal(`<h3>Insert element</h3><div class="bsub">Dropped ${where === 'before' ? 'above' : where === 'inside' ? 'inside' : 'below'} the selected ${labelFor(target).toLowerCase()} — then just start typing.</div><div class="ospace-elem-grid"></div>`);
+  let insertSpot = null, spotEl = null;
+  function clearSpot() { spotEl && spotEl.remove(); spotEl = null; insertSpot = null; }
+  function showSpot(spot) {
+    clearSpot();
+    insertSpot = spot;
+    spotEl = doc.createElement('div');
+    spotEl.className = 'ospace-spot';
+    spotEl.dataset.ospace = '1';
+    spotEl.innerHTML = '<span>+ Insert here</span>';
+    let r;
+    if (spot.gctx) r = cellRect(spot.gctx, spot.area);
+    else {
+      const pr = (spot.before || spot.parent).getBoundingClientRect();
+      r = { left: pr.left + scrollX, top: (spot.before ? pr.top : pr.bottom) + scrollY - 8, width: pr.width, height: 90 };
+    }
+    spotEl.style.left = r.left + 'px';
+    spotEl.style.top = r.top + 'px';
+    spotEl.style.width = r.width + 'px';
+    spotEl.style.height = r.height + 'px';
+    spotEl.onclick = (ev) => { ev.stopPropagation(); const sp = insertSpot; openElements(null, null, sp); };
+    doc.body.appendChild(spotEl);
+  }
+  function openElements(target, where, spot) {
+    const place = spot ? 'right at the marked spot' : target ? `${where === 'before' ? 'above' : where === 'inside' ? 'inside' : 'below'} the selected ${labelFor(target).toLowerCase()}` : 'on the page';
+    const wrap = mkModal(`<h3>Insert element</h3><div class="bsub">Dropped ${place} — then just start typing.</div><div class="ospace-elem-grid"></div>`);
     const grid = wrap.querySelector('.ospace-elem-grid');
     ELEMENTS.forEach((el) => {
       const b = doc.createElement('button');
@@ -1655,14 +1703,30 @@
         const tmp = doc.createElement('div');
         tmp.innerHTML = el.html.trim();
         const node = tmp.firstElementChild;
-        if (where === 'before') target.before(node);
+        if (spot && spot.gctx) {
+          spot.gctx.parent.appendChild(node);
+          node.style.margin = '0';
+          setArea(node, spot.area);
+        } else if (spot && spot.parent) {
+          spot.parent.insertBefore(node, spot.before || null);
+        } else if (where === 'before') target.before(node);
         else if (where === 'inside') target.appendChild(node);
-        else target.after(node);
+        else {
+          target.after(node);
+          // grid-aware: siblings in an explicit grid get placed just below the reference
+          const tctx = target.style && target.style.gridArea ? gridCtx(target) : null;
+          if (tctx) {
+            const a = areaOf(target);
+            node.style.margin = '0';
+            setArea(node, { r1: a.r2, c1: a.c1, r2: a.r2 + Math.max(2, a.r2 - a.r1 > 8 ? 6 : 3), c2: a.c2 });
+          }
+        }
+        clearSpot();
         wrap.remove();
         bindAll();
         node.scrollIntoView({ behavior: 'smooth', block: 'center' });
         select(node, false);
-        if (el.edit) startTextEdit(node);
+        if (el.edit) startTextEdit(node, true);
       };
       grid.appendChild(b);
     });
@@ -1698,6 +1762,7 @@
     const animOpts = [['', 'None'], ['fade-up', 'Fade up'], ['fade-in', 'Fade in'], ['slide-left', 'Slide left'], ['slide-right', 'Slide right'], ['zoom', 'Zoom in']];
     const items = [
       { lbl: labelFor(el) },
+      insertSpot && { label: 'Insert here…', icon: IC.plus, fn: ((sp) => () => openElements(null, null, sp))(insertSpot) },
       isText && { label: 'Edit text', icon: IC.edit, k: 'dbl-click', fn: () => startTextEdit(el) },
       el.tagName === 'IMG' && { label: 'Replace image…', icon: IC.img, fn: () => { select(el); } },
       el.tagName === 'VIDEO' && { label: 'Replace video…', icon: IC.play, fn: () => { select(el); } },
@@ -1746,19 +1811,40 @@
     ctxEl.dataset.ospace = '1';
     items.forEach((it) => ctxEl.appendChild(ctxItem(it)));
     doc.body.appendChild(ctxEl);
-    const r = ctxEl.getBoundingClientRect();
-    ctxEl.style.left = Math.min(x, innerWidth - r.width - 10) + 'px';
-    ctxEl.style.top = Math.min(y, innerHeight - r.height - 10) + 'px';
+    // offsetWidth/Height ignore the entrance animation's transform scaling
+    const w = ctxEl.offsetWidth, h = ctxEl.offsetHeight;
+    const left = Math.max(8, Math.min(x, innerWidth - w - 10));
+    ctxEl.style.left = left + 'px';
+    ctxEl.style.top = Math.max(8, Math.min(y, innerHeight - h - 10)) + 'px';
+    // submenus flip to the left when the menu hugs the right edge
+    if (left + w + 210 > innerWidth) ctxEl.classList.add('flip');
   }
 
   doc.addEventListener('contextmenu', (e) => {
     if (editingEl) return; // native menu while typing (spellcheck etc.)
     if (isEditorUI(e.target)) { e.preventDefault(); return; }
     e.preventDefault();
-    select(e.target, false);
-    openCtx(e.target, e.clientX, e.clientY);
+    // right-click on a container's empty space: mark the spot with a dashed insert zone
+    const t = e.target;
+    const isContainerHit = (t.tagName === 'SECTION' || t.tagName === 'DIV' || t === doc.body) &&
+      ![...t.children].some((k) => { if (k.dataset && k.dataset.ospace) return false; const kr = k.getBoundingClientRect(); return e.clientX >= kr.left && e.clientX <= kr.right && e.clientY >= kr.top && e.clientY <= kr.bottom; });
+    if (isContainerHit && t !== doc.body) {
+      const gctx = buildCtx(t);
+      if (gctx) {
+        const cell = cellFromPoint(gctx, e.clientX, e.clientY);
+        const w = Math.min(8, gctx.nCols), c1 = Math.min(Math.max(1, cell.col - Math.floor(w / 2)), gctx.nCols + 1 - w);
+        showSpot({ gctx, area: { r1: cell.row, c1, r2: cell.row + 4, c2: c1 + w } });
+      } else {
+        const kids = [...t.children].filter((k) => !(k.dataset && k.dataset.ospace));
+        let before = null;
+        for (const k of kids) { const kr = k.getBoundingClientRect(); if (e.clientY < kr.top + kr.height / 2) { before = k; break; } }
+        showSpot({ parent: t, before });
+      }
+    } else clearSpot();
+    select(t, false);
+    openCtx(t, e.clientX, e.clientY);
   });
-  doc.addEventListener('click', () => closeCtx(), true);
+  doc.addEventListener('click', (e) => { closeCtx(); if (spotEl && !spotEl.contains(e.target)) clearSpot(); }, true);
   doc.addEventListener('scroll', () => closeCtx(), true);
 
   /* ================= find & replace ================= */
@@ -1867,8 +1953,9 @@
     slotEls().forEach((el) => {
       const clone = el.cloneNode(true);
       clone.querySelectorAll('[data-ospace]').forEach((n) => n.remove());
+      clone.querySelectorAll('.ospace-lifted').forEach((n) => { n.style.transform = ''; });
       clone.querySelectorAll('*').forEach((n) => {
-        ['ospace-hover','ospace-selected','ospace-sec-hover','ospace-dragging','ospace-in'].forEach((c) => n.classList && n.classList.remove(c));
+        ['ospace-hover','ospace-selected','ospace-sec-hover','ospace-dragging','ospace-in','ospace-lifted','ospace-griditem-dragging','ospace-drop-parent'].forEach((c) => n.classList && n.classList.remove(c));
         if (n.classList && !n.classList.length) n.removeAttribute('class');
         n.removeAttribute && (n.removeAttribute('contenteditable'), n.removeAttribute('draggable'));
       });
@@ -1894,6 +1981,7 @@
     if (m.type === 'ospace-undo') undo();
     if (m.type === 'ospace-redo') redo();
     if (m.type === 'ospace-find') openFind();
+    if (m.type === 'ospace-theme') applyEditorTheme(m.mode);
     if (m.type === 'ospace-seo') {
       pushUndo();
       doc.title = m.title || doc.title;

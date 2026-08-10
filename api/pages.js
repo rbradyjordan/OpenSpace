@@ -55,7 +55,7 @@ const BLANK_PAGE = (title) => `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${title} — ClipPlayMedia - Brady Jordan</title>
+<title>${title}</title>
 <meta name="description" content="">
 <link rel="icon" href="https://images.squarespace-cdn.com/content/v1/61e1f4ef472914681c085004/2f42db79-b863-46e9-80b9-02c55d834649/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -126,6 +126,10 @@ module.exports = async (req, res) => {
       }
       if (html == null) html = readStatic(page);
       if (html === null) return res.status(404).json({ error: 'not found' });
+      // preview=1: page is being viewed at the /api/pages URL — repoint relative assets
+      if (url.searchParams.get('preview') === '1') {
+        html = html.replace(/<head([^>]*)>/i, '<head$1><base href="/">');
+      }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).send(html);
