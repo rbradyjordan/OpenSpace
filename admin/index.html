@@ -825,7 +825,7 @@ $('#palette').addEventListener('click',e=>{ if(e.target===$('#palette')) closePa
 window.addEventListener('beforeunload',e=>{ if(dirty){e.preventDefault();e.returnValue='';} });
 // Deployment-snapshot guard: hashed *-projects.vercel.app URLs are frozen builds
 if(location.hostname.includes('-projects.vercel.app') && !sessionStorage.getItem('ospaceSnapDismissed')){
-  const prod=location.hostname.split('-').slice(0,-3).join('-')+'.vercel.app';
+  const prod=location.hostname.replace(/-[a-z0-9]{6,}-[a-z0-9-]+-projects\.vercel\.app$/,'')+'.vercel.app';
   const b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:16px;left:50%;transform:translateX(-50%);max-width:92vw;z-index:9999;background:#e8c34a;color:#241c02;font:600 12.5px Poppins,sans-serif;padding:10px 40px 10px 16px;text-align:center;border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.45)';
   b.innerHTML='⚠️ Deployment snapshot — for the always-current Studio use <a style="color:inherit;text-decoration:underline" href="https://'+prod+'/admin/">'+prod+'/admin/</a><button style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;font:700 15px Poppins;color:#241c02;cursor:pointer;padding:4px 8px">✕</button>';

@@ -702,14 +702,12 @@
      Squarespace-style editing for CSS-grid children that carry explicit
      grid-area (e.g. the 26-track photo grids): drag anywhere to move with
      snap-to-cell + live lattice, and resize via corner/edge handles. */
-  function gridCtx(el) {
-    const parent = el.parentElement;
-    if (!parent || parent === doc.body) return null;
+  function buildCtx(parent) {
+    if (!parent || parent === doc.body || !parent.getBoundingClientRect) return null;
     const pcs = getComputedStyle(parent);
     if (pcs.display !== 'grid') return null;
-    const rowStart = getComputedStyle(el).gridRowStart;
-    if (rowStart === 'auto' || !/^\d+$/.test(rowStart)) return null;
-    const cols = pcs.gridTemplateColumns.split(' ').map(parseFloat);
+    const cols = pcs.gridTemplateColumns.split(' ').map(parseFloat).filter((n) => !isNaN(n));
+    if (cols.length < 2) return null;
     const rowH = parseFloat((pcs.gridAutoRows.match(/[\d.]+/) || [])[0]) || parseFloat((pcs.gridTemplateRows.match(/[\d.]+/) || [])[0]) || 24;
     return {
       parent, cols, nCols: cols.length, rowH,
@@ -718,6 +716,13 @@
       padL: parseFloat(pcs.paddingLeft) || 0,
       padT: parseFloat(pcs.paddingTop) || 0,
     };
+  }
+  function gridCtx(el) {
+    const ctx = buildCtx(el.parentElement);
+    if (!ctx) return null;
+    const rowStart = getComputedStyle(el).gridRowStart;
+    if (rowStart === 'auto' || !/^\d+$/.test(rowStart)) return null;
+    return ctx;
   }
   function areaOf(el) {
     const cs = getComputedStyle(el);
@@ -877,6 +882,7 @@
   }
   function markDropParent(p) {
     if (dropParentEl === p) return;
+    if (!p) { dropParentEl && dropParentEl.classList.remove('ospace-drop-parent'); dropParentEl = null; return; }
     dropParentEl && dropParentEl.classList.remove('ospace-drop-parent');
     dropParentEl = p;
     p && p !== doc.body && p.classList.add('ospace-drop-parent');
@@ -997,39 +1003,62 @@
     };
   }, true);
 
+  function findGridUnderPointer(x, y, dragEl) {
+    let t = doc.elementFromPoint(x, y);
+    if (!t) return null;
+    for (let n = t; n && n !== doc.documentElement; n = n.parentElement) {
+      if (isEditorUI(n)) return null;
+      if (n === dragEl || dragEl.contains(n)) continue;
+      const c = buildCtx(n);
+      if (c) return c;
+    }
+    return null;
+  }
   function dragFrame() {
     rafPending = false;
     if (!gd || !gd.moved || !lastMove) return;
     const e = lastMove;
     const dx = e.clientX - gd.startXY.x, dy = e.clientY - gd.startXY.y;
     gd.el.style.transform = `translate(${dx}px, ${dy}px)`;
-    if (gd.mode === 'grid') {
+    // whichever grid is under the pointer adopts the block — home grid or foreign
+    let ctxU = findGridUnderPointer(e.clientX, e.clientY, gd.el);
+    if (!ctxU && gd.ctx && gd.el.parentElement === gd.ctx.parent) {
       const pr = gd.ctx.parent.getBoundingClientRect();
-      if (e.clientX < pr.left - 60 || e.clientX > pr.right + 60 || e.clientY < pr.top - 60 || e.clientY > pr.bottom + 60) {
-        gd.target = null;
-        if (ghost) ghost.style.display = 'none';
+      if (e.clientX >= pr.left - 60 && e.clientX <= pr.right + 60 && e.clientY >= pr.top - 60 && e.clientY <= pr.bottom + 60) ctxU = gd.ctx;
+    }
+    gd.gridTarget = null; gd.drop = null;
+    if (ctxU) {
+      hideInsert(); markDropParent(null);
+      if (!latCtx || latCtx.parent !== ctxU.parent) showLattice(ctxU);
+      const pr = ctxU.parent.getBoundingClientRect();
+      const relLeft = gd.startRect.left + dx - pr.left - ctxU.padL;
+      const relTop = gd.startRect.top + dy - pr.top - ctxU.padT;
+      let w, h;
+      if (gd.startArea && gd.ctx && ctxU.parent === gd.ctx.parent) {
+        w = gd.startArea.c2 - gd.startArea.c1; h = gd.startArea.r2 - gd.startArea.r1;
       } else {
-        const relLeft = gd.startRect.left - pr.left - gd.ctx.padL + dx;
-        const relTop = gd.startRect.top - pr.top - gd.ctx.padT + dy;
-        const a = gd.startArea;
-        const w = a.c2 - a.c1, h = a.r2 - a.r1;
-        let acc = 0, c1 = 1, best = Infinity;
-        for (let i = 0; i <= gd.ctx.nCols; i++) {
-          const d = Math.abs(acc - relLeft);
-          if (d < best) { best = d; c1 = i + 1; }
-          if (i < gd.ctx.nCols) acc += gd.ctx.cols[i] + gd.ctx.colGap;
-        }
-        c1 = Math.min(Math.max(1, c1), gd.ctx.nCols + 1 - w);
-        const r1 = Math.max(1, Math.round(relTop / (gd.ctx.rowH + gd.ctx.rowGap)) + 1);
-        gd.target = { r1, c1, r2: r1 + h, c2: c1 + w };
-        if (ghost) ghost.style.display = 'block';
-        moveGhost(gd.ctx, gd.target);
+        const cp = ctxU.cols[0] + ctxU.colGap;
+        w = Math.min(Math.max(1, Math.round((gd.startRect.width + ctxU.colGap) / cp)), ctxU.nCols);
+        h = Math.max(1, Math.round((gd.startRect.height + ctxU.rowGap) / (ctxU.rowH + ctxU.rowGap)));
       }
+      let acc = 0, c1 = 1, best = Infinity;
+      for (let i = 0; i <= ctxU.nCols; i++) {
+        const d = Math.abs(acc - relLeft);
+        if (d < best) { best = d; c1 = i + 1; }
+        if (i < ctxU.nCols) acc += ctxU.cols[i] + ctxU.colGap;
+      }
+      c1 = Math.min(Math.max(1, c1), ctxU.nCols + 1 - w);
+      const r1 = Math.max(1, Math.round(relTop / (ctxU.rowH + ctxU.rowGap)) + 1);
+      const area = { r1, c1, r2: r1 + h, c2: c1 + w };
+      gd.gridTarget = { ctx: ctxU, area };
+      if (!ghost) showGhost(ctxU, area);
+      else { ghost.style.display = 'block'; moveGhost(ctxU, area); }
     } else {
+      if (ghost) ghost.style.display = 'none';
+      hideLattice();
       const drop = findDropPoint(e.clientX, e.clientY, gd.el);
       gd.drop = drop;
-      if (drop) { showInsert(drop.line); markDropParent(drop.parent); }
-      else { hideInsert(); }
+      if (drop) { showInsert(drop.line); markDropParent(drop.parent); } else hideInsert();
     }
     if (e.clientY < 70) scrollBy(0, -12);
     if (e.clientY > innerHeight - 70) scrollBy(0, 12);
@@ -1055,7 +1084,6 @@
         }
       }
       gd.el.classList.add('ospace-lifted');
-      if (gd.mode === 'grid') { showLattice(gd.ctx); showGhost(gd.ctx, gd.startArea); }
       hideToolbar(); hideBadge(); closePanel(); clearHandles(); hideAddLines();
       secTools.style.display = 'none';
     }
@@ -1073,9 +1101,15 @@
       gd.el.style.transform = '';
       gd.el.classList.remove('ospace-lifted');
       if (commit) {
-        if (gd.mode === 'grid' && gd.target) setArea(gd.el, gd.target);
-        if (gd.mode === 'flow' && gd.drop && gd.drop.parent) {
-          try { gd.drop.parent.insertBefore(gd.el, gd.drop.before); } catch {}
+        if (gd.gridTarget) {
+          const { ctx, area } = gd.gridTarget;
+          if (ctx.parent !== gd.el.parentElement) { ctx.parent.appendChild(gd.el); gd.el.style.margin = '0'; }
+          setArea(gd.el, area);
+        } else if (gd.drop && gd.drop.parent) {
+          try {
+            gd.drop.parent.insertBefore(gd.el, gd.drop.before);
+            if (getComputedStyle(gd.drop.parent).display !== 'grid') gd.el.style.gridArea = '';
+          } catch {}
         }
       }
       hideGhost(); hideLattice(); hideInsert();
