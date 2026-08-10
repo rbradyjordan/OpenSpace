@@ -1,5 +1,5 @@
 // Media upload: raw body -> Vercel Blob. ?name=<filename> query param.
-const { requireAuth, readBody } = require('./_lib.js');
+const { requireAuth, readBody, blobToken } = require('./_lib.js');
 
 const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 const ALLOWED = /\.(png|jpe?g|gif|webp|avif|svg|mp4|webm|mov|m4v|mp3|wav|pdf|ico)$/i;
@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
     // media library listing
     try {
       const { list } = await import('@vercel/blob');
-      const { blobs } = await list({ prefix: 'media/' });
+      const { blobs } = await list({ prefix: 'media/', token: blobToken() });
       return res.status(200).json({
         media: blobs
           .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
       const target = url.searchParams.get('url');
       if (!target) return res.status(400).json({ error: 'missing url' });
       const { del } = await import('@vercel/blob');
-      await del(target);
+      await del(target, { token: blobToken() });
       return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: e.message });
@@ -50,6 +50,7 @@ module.exports = async (req, res) => {
       access: 'public',
       contentType: req.headers['content-type'] || undefined,
       addRandomSuffix: false,
+      token: blobToken(),
     });
     return res.status(200).json({ url: blob.url, pathname: blob.pathname });
   } catch (e) {

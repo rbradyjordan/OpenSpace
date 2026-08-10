@@ -1,5 +1,5 @@
 // Slot-content API — the portable integration layer for framework sites (Next.js, etc).
-// Pages mark editable regions with data-ospace-slot="name"; the editor saves slot HTML here
+// Pages mark editable regions with data-cpm-slot="name"; the editor saves slot HTML here
 // as JSON keyed by page path. Public GET (CORS-enabled) so any front-end can hydrate.
 const {
   requireAuth,
@@ -28,11 +28,15 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: 'unauthorized' });
     }
     try {
-      const text =
-        (mode === 'draft'
-          ? (await blobReadText(`content/draft/${key}.json`)) ||
-            (await blobReadText(`content/published/${key}.json`))
-          : await blobReadText(`content/published/${key}.json`)) || '{}';
+      let text = null;
+      try {
+        text =
+          mode === 'draft'
+            ? (await blobReadText(`content/draft/${key}.json`)) ||
+              (await blobReadText(`content/published/${key}.json`))
+            : await blobReadText(`content/published/${key}.json`);
+      } catch {}
+      text = text || '{}';
       res.setHeader('Content-Type', 'application/json');
       res.setHeader(
         'Cache-Control',

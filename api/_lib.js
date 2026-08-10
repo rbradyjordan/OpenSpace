@@ -1,7 +1,7 @@
 // Shared helpers: auth (HMAC-signed session cookies) + blob storage utils.
 const crypto = require('crypto');
 
-const SESSION_COOKIE = 'ospace_session';
+const SESSION_COOKIE = 'cpm_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
 function getSecret() {
@@ -74,13 +74,21 @@ function clearCookie() {
 }
 
 // ---- blob helpers ----
+// Vercel's connect flow can prefix the token env var (e.g. MYSTORE_BLOB_READ_WRITE_TOKEN);
+// the SDK only auto-detects the unprefixed name, so locate it ourselves.
+function blobToken() {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  const key = Object.keys(process.env).find((k) => k.endsWith('BLOB_READ_WRITE_TOKEN'));
+  return key ? process.env[key] : undefined;
+}
+
 async function blobModule() {
   return await import('@vercel/blob');
 }
 
 async function blobFind(prefix) {
   const { list } = await blobModule();
-  const { blobs } = await list({ prefix });
+  const { blobs } = await list({ prefix, token: blobToken() });
   return blobs;
 }
 
@@ -100,6 +108,7 @@ async function blobWriteText(pathname, text, contentType) {
     contentType: contentType || 'text/html; charset=utf-8',
     addRandomSuffix: false,
     cacheControlMaxAge: 0,
+    token: blobToken(),
   });
 }
 
@@ -107,7 +116,7 @@ async function blobDelete(pathname) {
   const { del } = await blobModule();
   const blobs = await blobFind(pathname);
   const hit = blobs.find((b) => b.pathname === pathname);
-  if (hit) await del(hit.url);
+  if (hit) await del(hit.url, { token: blobToken() });
 }
 
 async function readBody(req) {
@@ -122,6 +131,7 @@ async function readBody(req) {
 const PAGE_NAME_RE = /^[a-z0-9][a-z0-9-]{0,60}\.html$/;
 
 module.exports = {
+  blobToken,
   SESSION_COOKIE,
   sign,
   verify,

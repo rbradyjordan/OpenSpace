@@ -599,6 +599,14 @@ $('#palInput').addEventListener('keydown',e=>{
 $('#palette').addEventListener('click',e=>{ if(e.target===$('#palette')) closePalette(); });
 
 window.addEventListener('beforeunload',e=>{ if(dirty){e.preventDefault();e.returnValue='';} });
+// Deployment-snapshot guard: hashed *-projects.vercel.app URLs are frozen builds
+if(location.hostname.includes('-projects.vercel.app')){
+  const prod=location.hostname.split('-').slice(0,-3).join('-')+'.vercel.app';
+  const b=document.createElement('div');
+  b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#e8c34a;color:#241c02;font:600 13px Poppins,sans-serif;padding:10px 16px;text-align:center';
+  b.innerHTML='⚠️ You\'re on a frozen deployment snapshot — saves may fail. Use the live Studio: <a style="color:inherit;text-decoration:underline" href="https://'+prod+'/admin/">'+prod+'/admin/</a>';
+  document.body.appendChild(b);
+}
 checkSession();
 </script>
 </body>
