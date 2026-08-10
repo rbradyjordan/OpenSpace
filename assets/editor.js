@@ -137,6 +137,20 @@
   .ospace-keys kbd{background:var(--ospaceP2);border:1px solid var(--ospaceL2);border-radius:5px;padding:2px 7px;font:600 10.5px Poppins;color:var(--ospaceT)}
   body.ospace-panel-open{margin-right:320px}
 
+  /* ============ fluid grid engine (Squarespace-style) ============ */
+  .ospace-lattice{position:absolute;z-index:2147482800;pointer-events:none;
+    background-image:
+      repeating-linear-gradient(to right, rgba(255,255,255,.13) 0 1px, transparent 1px var(--cellw)),
+      repeating-linear-gradient(to bottom, rgba(255,255,255,.13) 0 1px, transparent 1px var(--cellh));
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);
+    background-color:rgba(10,12,15,.25);
+    border-radius:4px;animation:ospaceFade .12s}
+  .ospace-griditem-dragging{opacity:.75;outline:2px solid var(--ospaceB) !important;cursor:grabbing !important}
+  .ospace-handle{position:fixed;z-index:2147483005;width:12px;height:12px;background:#fff;border:2px solid var(--ospaceB);border-radius:3px;cursor:nwse-resize;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  .ospace-handle.e{cursor:ew-resize;border-radius:3px}
+  .ospace-handle.s{cursor:ns-resize}
+  .ospace-posbadge{position:fixed;z-index:2147483006;background:var(--ospaceB);color:#06131f;font:600 10px Poppins;padding:4px 9px;border-radius:6px;pointer-events:none;white-space:nowrap}
+
   /* ============ v3: springy, glassy, tactile ============ */
   @keyframes ospaceSpring{0%{opacity:0;transform:scale(.9) translateY(8px)}60%{opacity:1;transform:scale(1.02) translateY(-2px)}100%{opacity:1;transform:none}}
   .ospace-toolbar,.ospace-sec-tools,.ospace-find,.ospace-panel{backdrop-filter:blur(16px) saturate(1.3);background:rgba(19,22,28,.88)}
@@ -227,7 +241,12 @@
   /* ================= state ================= */
   let selected = null;
   let undoStack = [], redoStack = [];
-  const bodySnapshot = () => doc.body.innerHTML;
+  const bodySnapshot = () => {
+    // exclude editor UI — snapshots must contain only real page content
+    const c = doc.body.cloneNode(true);
+    c.querySelectorAll('[data-ospace]').forEach((n) => n.remove());
+    return c.innerHTML;
+  };
   function markDirty() { parent.postMessage({ type: 'ospace-dirty' }, '*'); }
   function pushUndo() {
     undoStack.push(bodySnapshot());
@@ -300,12 +319,13 @@
     showBadge(el);
     showToolbar(el);
     showCrumb(el);
+    mountHandles(el);
     if (withPanel) openPanelFor(el);
   }
   function deselect() {
     if (selected) selected.classList.remove('ospace-selected');
     selected = null;
-    hideBadge(); hideToolbar(); hideCrumb(); closePanel();
+    hideBadge(); hideToolbar(); hideCrumb(); closePanel(); clearHandles(); hideLattice();
   }
 
   doc.addEventListener('keydown', (e) => {
@@ -463,7 +483,7 @@
   function hideAddLines() { addTop.style.display = 'none'; addBot.style.display = 'none'; }
   doc.addEventListener('scroll', () => {
     if (secTarget) { showSecTools(secTarget); showAddLines(secTarget); }
-    if (selected) { showBadge(selected); }
+    if (selected) { showBadge(selected); positionAllHandles(selected); }
     hideToolbar();
   }, true);
 
@@ -508,6 +528,7 @@
   /* ================= drag & drop: grid items ================= */
   function bindGridDrag() {
     doc.querySelectorAll('.fgrid img, .others-grid img, .trusted-row img').forEach((img) => {
+      if (img.style.gridArea) { img.draggable = false; return; } // fluid grid engine handles these
       img.draggable = true;
       img.ondragstart = (e) => { e.dataTransfer.setData('text/plain', 'ospace-grid-item'); window.__ospaceDragItem = img; img.classList.add('ospace-dragging'); };
       img.ondragend = () => { img.classList.remove('ospace-dragging'); window.__ospaceDragItem = null; };
@@ -686,6 +707,185 @@
     rangeField(p, 'Corner radius', parseInt(el.style.borderRadius) || 0, 0, 60, 1, (v) => v + 'px', (v) => el.style.borderRadius = v + 'px');
     animControls(p, el);
     commonActions(p, el);
+  }
+
+  /* ================= fluid grid engine =================
+     Squarespace-style editing for CSS-grid children that carry explicit
+     grid-area (e.g. the 26-track photo grids): drag anywhere to move with
+     snap-to-cell + live lattice, and resize via corner/edge handles. */
+  function gridCtx(el) {
+    const parent = el.parentElement;
+    if (!parent || parent === doc.body) return null;
+    const pcs = getComputedStyle(parent);
+    if (pcs.display !== 'grid') return null;
+    const rowStart = getComputedStyle(el).gridRowStart;
+    if (rowStart === 'auto' || !/^\d+$/.test(rowStart)) return null;
+    const cols = pcs.gridTemplateColumns.split(' ').map(parseFloat);
+    const rowH = parseFloat(pcs.gridAutoRows) || parseFloat(pcs.gridTemplateRows.split(' ')[0]) || 24;
+    return {
+      parent, cols, nCols: cols.length, rowH,
+      colGap: parseFloat(pcs.columnGap) || 0,
+      rowGap: parseFloat(pcs.rowGap) || 0,
+      padL: parseFloat(pcs.paddingLeft) || 0,
+      padT: parseFloat(pcs.paddingTop) || 0,
+    };
+  }
+  function areaOf(el) {
+    const cs = getComputedStyle(el);
+    const r1 = parseInt(cs.gridRowStart), c1 = parseInt(cs.gridColumnStart);
+    let r2 = cs.gridRowEnd, c2 = cs.gridColumnEnd;
+    r2 = /^\d+$/.test(r2) ? parseInt(r2) : r1 + 1;
+    c2 = /^\d+$/.test(c2) ? parseInt(c2) : c1 + 1;
+    return { r1, c1, r2, c2 };
+  }
+  function setArea(el, a) { el.style.gridArea = `${a.r1}/${a.c1}/${a.r2}/${a.c2}`; }
+  function cellFromPoint(ctx, clientX, clientY) {
+    const pr = ctx.parent.getBoundingClientRect();
+    const x = clientX - pr.left - ctx.padL;
+    const y = clientY - pr.top - ctx.padT;
+    let acc = 0, col = 1;
+    for (let i = 0; i < ctx.nCols; i++) {
+      acc += ctx.cols[i] + ctx.colGap;
+      if (x < acc) { col = i + 1; break; }
+      col = i + 2;
+    }
+    const row = Math.max(1, Math.floor(y / (ctx.rowH + ctx.rowGap)) + 1);
+    return { row, col: Math.min(Math.max(col, 1), ctx.nCols) };
+  }
+  let lattice = null, posBadge = null;
+  function showLattice(ctx) {
+    hideLattice();
+    const pr = ctx.parent.getBoundingClientRect();
+    lattice = doc.createElement('div');
+    lattice.className = 'ospace-lattice';
+    lattice.dataset.ospace = '1';
+    const cellw = ctx.cols[0] + ctx.colGap, cellh = ctx.rowH + ctx.rowGap;
+    lattice.style.cssText += `;left:${pr.left + scrollX + ctx.padL}px;top:${pr.top + scrollY + ctx.padT}px;width:${pr.width - ctx.padL * 2}px;height:${pr.height - ctx.padT * 2}px;--cellw:${cellw}px;--cellh:${cellh}px`;
+    doc.body.appendChild(lattice);
+    posBadge = doc.createElement('div');
+    posBadge.className = 'ospace-posbadge';
+    posBadge.dataset.ospace = '1';
+    doc.body.appendChild(posBadge);
+  }
+  function hideLattice() {
+    lattice && lattice.remove(); lattice = null;
+    posBadge && posBadge.remove(); posBadge = null;
+  }
+  function updatePosBadge(el, a) {
+    if (!posBadge) return;
+    const r = el.getBoundingClientRect();
+    posBadge.textContent = `${a.c2 - a.c1} × ${a.r2 - a.r1} cells`;
+    posBadge.style.left = r.left + 'px';
+    posBadge.style.top = (r.top - 24) + 'px';
+  }
+
+  /* ---- drag to move ---- */
+  let gd = null; // {el, ctx, startArea, grabRow, grabCol, moved, pushed}
+  doc.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || editingEl || isEditorUI(e.target)) return;
+    const el = e.target.closest && e.target.closest('[style*="grid-area"]');
+    const target = el && el.parentElement ? el : e.target;
+    const ctx = gridCtx(target);
+    if (!ctx) return;
+    const cell = cellFromPoint(ctx, e.clientX, e.clientY);
+    gd = { el: target, ctx, startArea: areaOf(target), grab: cell, moved: false, pushed: false };
+  }, true);
+  doc.addEventListener('pointermove', (e) => {
+    if (!gd) return;
+    if (!gd.moved) {
+      const cell = cellFromPoint(gd.ctx, e.clientX, e.clientY);
+      if (cell.row === gd.grab.row && cell.col === gd.grab.col) return;
+      gd.moved = true;
+      if (!gd.pushed) { pushUndo(); gd.pushed = true; }
+      gd.el.classList.add('ospace-griditem-dragging');
+      showLattice(gd.ctx);
+      hideToolbar(); hideBadge(); closePanel();
+    }
+    e.preventDefault();
+    const cell = cellFromPoint(gd.ctx, e.clientX, e.clientY);
+    const a = gd.startArea;
+    const w = a.c2 - a.c1, h = a.r2 - a.r1;
+    let c1 = cell.col - (gd.grab.col - a.c1);
+    let r1 = cell.row - (gd.grab.row - a.r1);
+    c1 = Math.min(Math.max(1, c1), gd.ctx.nCols + 1 - w);
+    r1 = Math.max(1, r1);
+    const next = { r1, c1, r2: r1 + h, c2: c1 + w };
+    setArea(gd.el, next);
+    updatePosBadge(gd.el, next);
+  });
+  doc.addEventListener('pointerup', () => {
+    if (!gd) return;
+    if (gd.moved) {
+      gd.el.classList.remove('ospace-griditem-dragging');
+      hideLattice();
+      markDirty();
+      const el = gd.el;
+      setTimeout(() => select(el, false), 0);
+    }
+    gd = null;
+  });
+
+  /* ---- resize handles ---- */
+  let handles = [];
+  function clearHandles() { handles.forEach((h) => h.remove()); handles = []; }
+  function mountHandles(el) {
+    clearHandles();
+    const ctx = gridCtx(el);
+    const isMedia = el.tagName === 'IMG' || el.tagName === 'VIDEO';
+    const isSection = el.parentElement === doc.body;
+    if (!ctx && !isMedia && !isSection) return;
+    const specs = ctx ? [['se','nwse'],['e','ew'],['s','ns']] : isMedia ? [['se','nwse']] : [['s','ns']];
+    const r = el.getBoundingClientRect();
+    specs.forEach(([pos]) => {
+      const h = doc.createElement('div');
+      h.className = 'ospace-handle ' + pos;
+      h.dataset.ospace = '1';
+      positionHandle(h, pos, r);
+      doc.body.appendChild(h);
+      handles.push(h);
+      h.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        pushUndo();
+        const start = { x: e.clientX, y: e.clientY, area: ctx ? areaOf(el) : null, w: r.width, h: r.height, minH: parseFloat(getComputedStyle(el).minHeight) || r.height };
+        if (ctx) showLattice(ctx);
+        const move = (ev) => {
+          if (ctx) {
+            const cell = cellFromPoint(ctx, ev.clientX, ev.clientY);
+            const a = { ...areaOf(el) };
+            if (pos === 'se' || pos === 'e') a.c2 = Math.min(Math.max(cell.col + 1, start.area.c1 + 1), ctx.nCols + 1);
+            if (pos === 'se' || pos === 's') a.r2 = Math.max(cell.row + 1, start.area.r1 + 1);
+            setArea(el, a);
+            updatePosBadge(el, a);
+          } else if (isMedia) {
+            const w = Math.max(40, start.w + (ev.clientX - start.x));
+            el.style.width = Math.round(w) + 'px';
+            el.style.maxWidth = 'none';
+            el.style.height = 'auto';
+          } else {
+            el.style.minHeight = Math.round(Math.max(40, start.minH + (ev.clientY - start.y))) + 'px';
+          }
+          positionAllHandles(el);
+        };
+        const up = () => {
+          doc.removeEventListener('pointermove', move);
+          doc.removeEventListener('pointerup', up);
+          hideLattice();
+          markDirty();
+          select(el, false);
+        };
+        doc.addEventListener('pointermove', move);
+        doc.addEventListener('pointerup', up);
+      });
+    });
+  }
+  function positionHandle(h, pos, r) {
+    if (pos === 'se') { h.style.left = (r.right - 7) + 'px'; h.style.top = (r.bottom - 7) + 'px'; }
+    if (pos === 'e') { h.style.left = (r.right - 7) + 'px'; h.style.top = (r.top + r.height / 2 - 6) + 'px'; }
+    if (pos === 's') { h.style.left = (r.left + r.width / 2 - 6) + 'px'; h.style.top = (r.bottom - 7) + 'px'; }
+  }
+  function positionAllHandles(el) {
+    const r = el.getBoundingClientRect();
+    handles.forEach((h) => positionHandle(h, h.classList.contains('e') ? 'e' : h.classList.contains('s') ? 's' : 'se', r));
   }
 
   /* ---- background media: image/video cover + legibility overlay ---- */
@@ -1302,7 +1502,7 @@
     return el;
   }
   function cleanupUI() {
-    hideToolbar(); closePanel(); hideBadge(); hideCrumb(); hideAddLines(); closeFind();
+    hideToolbar(); closePanel(); hideBadge(); hideCrumb(); hideAddLines(); closeFind(); clearHandles(); hideLattice();
     secTools.style.display = 'none';
     selected = null; editingEl = null;
   }
