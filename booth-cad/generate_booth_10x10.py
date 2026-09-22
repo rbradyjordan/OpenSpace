@@ -415,6 +415,46 @@ def view_title(msp, title, cx, y, scale=True):
         text(msp, "SCALE: " + SCALE_LABEL, cx, y - 11, 3.5)
 
 
+def callout_2d(msp, anchor, text_at, lines, h=3.5):
+    """Leader from a dot at `anchor` to a short landing, then text lines."""
+    ax, ay = anchor
+    tx, ty = text_at
+    right = tx >= ax
+    land = (tx - 3 if right else tx + 3, ty)
+    msp.add_line((ax, ay), land, dxfattribs={"layer": "A-ANNO"})
+    msp.add_line(land, (tx - 0.5 if right else tx + 0.5, ty), dxfattribs={"layer": "A-ANNO"})
+    dot = msp.add_hatch(dxfattribs={"layer": "A-ANNO"})
+    dot.paths.add_edge_path().add_arc((ax, ay), radius=0.9, start_angle=0, end_angle=360)
+    for i, line in enumerate(lines):
+        text(msp, line, tx + (1 if right else -1), ty - i * h * 1.6,
+             h if i == 0 else h * 0.85, align="MIDDLE_LEFT" if right else "MIDDLE_RIGHT")
+
+
+def iso_callouts(msp, P, Q, posts):
+    """Part labels on the isometric view, set in the empty corners of the
+    iso's bounding box. P maps model (x, y, z) -> sheet; Q maps raw iso
+    projection (u, v) -> sheet."""
+    W, D = BOOTH_W, BOOTH_D
+    ot, _, _ = triangle_geometry()
+    y_front = D - FRAME_DEPTH
+    fi = ft_in
+    h = 3.0
+    # top-left corner: canopy
+    callout_2d(msp, P(ot[2][0], ot[2][1], TRI_TOP), Q(34, 118),
+               ["TRIANGLE CANOPY", f"{fi(TRI_SIDE)} EQUILATERAL", f"TOP AT {fi(TRI_TOP)}"], h)
+    # top-right corner: header beam
+    callout_2d(msp, P(W / 2 + 24, D - HEADER_FROM_BACK - MEMBER / 2, FRAME_H), Q(128, 114),
+               ["HEADER BEAM", f"{MEMBER:g}\" SQ., TOP AT {fi(FRAME_H)}"], h)
+    # left, below the left frame: canopy posts
+    callout_2d(msp, P(posts[0][0], posts[0][1] - TRI_POST / 2, 34), Q(33, 44),
+               ["CANOPY POSTS (3)", f"{TRI_POST:g}\" SQ.", f"{fi(TRI_TOP - TRI_THICK)} CLEAR UNDER"], h)
+    # bottom-left corner: front / aisle
+    callout_2d(msp, P(W / 2, 0, 0), Q(22, -30), ["FRONT (AISLE)"], h)
+    # bottom-right corner: side frame
+    callout_2d(msp, P(W, y_front + MEMBER / 2, FRAME_H * 0.6), Q(132, -34),
+               ["SIDE FRAME (TYP.)", f"{MEMBER:g}\" SQ. POSTS + RAIL", f"{fi(FRAME_H)} HIGH"], h)
+
+
 def build_sheet(faces, posts):
     doc = setup_doc()
     msp = doc.modelspace()
@@ -459,6 +499,12 @@ def build_sheet(faces, posts):
     dim(msp, P(W, D - FRAME_DEPTH), P(W, D), P(W + 18, 0), vertical=True)  # side frame depth
     dim(msp, P(ot[0][0], ot[0][1]), P(ot[0][0], D), P((MEMBER + ot[0][0]) / 2, 0), vertical=True)
     text(msp, "AISLE", P(W / 2, -30)[0], P(W / 2, -30)[1], 4.0)
+    # part labels inside the plan
+    hb = P(W / 2, D - HEADER_FROM_BACK / 2)
+    text(msp, "HEADER BEAM (ABOVE)", hb[0], hb[1], 2.5)
+    cen = P(W / 2, (ot[0][1] * 2 + ot[2][1]) / 3)
+    text(msp, "TRIANGLE", cen[0], cen[1] + 2, 2.5)
+    text(msp, "CANOPY ABOVE", cen[0], cen[1] - 2, 2.5)
     view_title(msp, "PLAN VIEW", P(W / 2, 0)[0], P(0, -42)[1])
 
     # ISOMETRIC -----------------------------------------------------------
@@ -466,6 +512,9 @@ def build_sheet(faces, posts):
     idx = col2_cx - (ix0 + ix1) / 2
     idy = by1 - 0.6 * S - iy1               # top of iso just under the border
     add_segments(msp, iso, idx, idy)
+    iso_callouts(msp, lambda x, y, z: (VIEWS["iso"](x, y, z)[0] + idx,
+                                       VIEWS["iso"](x, y, z)[1] + idy),
+                 lambda u, v: (u + idx, v + idy), posts)
     view_title(msp, "ISOMETRIC VIEW", col2_cx, pdy - 42, scale=False)
     text(msp, "NOT TO SCALE", col2_cx, pdy - 53, 3.5)
 

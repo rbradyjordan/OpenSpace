@@ -16,3 +16,9 @@ Ka 0 0 0
 d 1
 illum 1
 
+newmtl label
+Kd 0.1216 0.3725 0.6275
+Ka 0 0 0
+d 1
+illum 1
+

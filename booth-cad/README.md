@@ -16,6 +16,12 @@ three posts. Everything stays inside the 10' x 10' footprint and under 8'-0".
 | `booth_10x10.obj` / `.mtl`, `booth_10x10.stl` | Any 3D/CAD tool. Inches, Z up. |
 | `booth_10x10_3d_views.png` | Quick shaded preview. |
 
+The 3D files include labels (blue): dimension lines for the footprint,
+heights, canopy size and side-frame depth, plus callouts naming each part
+and marking the front/aisle side. In SketchUp/AutoCAD they are separate
+objects named `Label_*` (layer `3D-LABEL` in the DXF) so they can be hidden;
+the browser viewer has a Labels button. The STL has no labels.
+
 ### 2D drawing sheet
 
 | File | What it is |
@@ -28,7 +34,8 @@ three posts. Everything stays inside the 10' x 10' footprint and under 8'-0".
 
 `generate_booth_10x10.py` holds all the dimensions (the `PARAMETERS` block)
 and builds the 2D sheet. `export_3d.py` builds the 3D files from the same
-geometry, so the model and drawing always match. `viewer_template.html` is
+geometry, so the model and drawing always match; `labels_3d.py` builds the
+3D dimensions and callouts. `viewer_template.html` is
 the browser viewer's page.
 
 ## Key dimensions
@@ -46,7 +53,7 @@ exhibitor manual before submitting.
 ## Regenerate
 
 ```
-pip install ezdxf matplotlib trimesh networkx usd-core pycollada
+pip install ezdxf matplotlib trimesh networkx shapely mapbox_earcut usd-core pycollada
 python3 generate_booth_10x10.py   # 2D sheet
 python3 export_3d.py              # 3D model files + viewer
 ```

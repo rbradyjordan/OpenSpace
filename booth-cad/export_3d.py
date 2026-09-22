@@ -14,7 +14,7 @@ Export the 10' x 10' booth as a solid 3D model.
 
 Geometry comes from generate_booth_10x10.build_parts(), so the 3D model and
 the 2D drawing always match. Run:
-    pip install ezdxf matplotlib trimesh networkx usd-core pycollada
+    pip install ezdxf matplotlib trimesh networkx shapely mapbox_earcut usd-core pycollada
     python3 export_3d.py
 """
 
@@ -28,6 +28,7 @@ import trimesh
 from ezdxf.render import MeshBuilder
 
 import generate_booth_10x10 as booth
+import labels_3d
 
 OUT = booth.OUT_DIR
 INCH = 0.0254
@@ -38,6 +39,7 @@ MATERIALS = {
     "frame": ((46, 46, 48, 255), 250),
     "canopy": ((242, 242, 240, 255), 7),
     "carpet": ((140, 146, 154, 255), 8),
+    "label": ((31, 95, 160, 255), 5),
 }
 
 
@@ -68,6 +70,7 @@ def part_meshes():
         trimesh.repair.fix_normals(m)            # consistent, outward winding
         assert m.is_watertight and m.is_volume, f"{name} is not a closed solid"
         out.append((name, kind, m))
+    out += labels_3d.build_label_meshes()   # dimensions + callouts
     return out
 
 
@@ -203,9 +206,9 @@ def render_preview(meshes, path):
             cols = np.clip(base[None, :] * shade[:, None] + 0.08, 0, 1)
             ax.add_collection3d(Poly3DCollection(tris, facecolors=cols, edgecolors=(0, 0, 0, 0.35),
                                                  linewidths=0.3))
-        ax.set_xlim(-10, 130)
-        ax.set_ylim(-10, 130)
-        ax.set_zlim(0, 140)
+        ax.set_xlim(-40, 180)
+        ax.set_ylim(-60, 160)
+        ax.set_zlim(0, 220)
         ax.set_box_aspect((1, 1, 1))
         ax.view_init(elev=elev, azim=azim)
         ax.set_axis_off()
@@ -251,7 +254,8 @@ def main():
         f.write(trimesh.exchange.dae.export_collada(list(scene(meshes, meters_yup=True).geometry.values())))
     write_usdz(meshes, p("booth_10x10.usdz"))
     write_obj(meshes, p("booth_10x10.obj"))
-    trimesh.util.concatenate([m for _, _, m in meshes]).export(p("booth_10x10.stl"))
+    # STL is for fabrication/printing: structure only, no labels
+    trimesh.util.concatenate([m for _, k, m in meshes if k != "label"]).export(p("booth_10x10.stl"))
     render_preview(meshes, p("booth_10x10_3d_views.png"))
     write_viewer(p("booth_10x10.glb"), p("booth_10x10_viewer.html"))
     if len(sys.argv) > 1:  # optional: body-only copy for publishing as a web page
