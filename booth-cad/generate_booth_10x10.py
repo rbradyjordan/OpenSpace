@@ -11,6 +11,9 @@ plan / front / side / isometric views with hidden-line removal and writes:
   booth_10x10_drawing.dxf   2D drawing sheet (model space, 1 unit = 1 inch)
   booth_10x10_drawing.pdf   print-ready sheet, ARCH C (24" x 18")
   booth_10x10_drawing.png   preview
+  booth_10x10_views.png/.jpg  shareable image of the four views, laid out
+                            like the original 20' x 20' drawing
+  booth_10x10_{plan,iso,front,side}.png  each view on its own
 
 The 3D model files come from export_3d.py, which reuses build_parts().
 
@@ -359,7 +362,7 @@ def bbox(segments):
 
 
 # --------------------------------------------------------------- DXF sheet
-def setup_doc():
+def setup_doc(txt=3.0):
     doc = ezdxf.new("R2010", setup=True)
     doc.units = ezdxf.units.IN
     doc.header["$MEASUREMENT"] = 0
@@ -377,9 +380,9 @@ def setup_doc():
     for name, (color, lw) in layers.items():
         doc.layers.add(name, color=color, lineweight=lw)
     doc.styles.add("ARCH-TXT", font="arial.ttf")
-    txt = 3.0  # 1/8" at 1/2" = 1'-0"
+    # txt: dimension text height; 3" = 1/8" on paper at 1/2" = 1'-0"
     doc.dimstyles.new("ARCH", dxfattribs={
-        "dimtxsty": "ARCH-TXT", "dimtxt": txt, "dimasz": 2.5, "dimexo": 1.5,
+        "dimtxsty": "ARCH-TXT", "dimtxt": txt, "dimasz": 2.5 * txt / 3, "dimexo": 1.5,
         "dimexe": 1.5, "dimgap": 1.0, "dimtad": 0, "dimtih": 1, "dimtoh": 1,
         "dimlunit": 4, "dimzin": 1, "dimdec": 4, "dimclrd": 1, "dimclre": 1,
         "dimclrt": 7, "dimtix": 1,
@@ -430,7 +433,7 @@ def callout_2d(msp, anchor, text_at, lines, h=3.5):
              h if i == 0 else h * 0.85, align="MIDDLE_LEFT" if right else "MIDDLE_RIGHT")
 
 
-def iso_callouts(msp, P, Q, posts):
+def iso_callouts(msp, P, Q, posts, h=3.0):
     """Part labels on the isometric view, set in the empty corners of the
     iso's bounding box. P maps model (x, y, z) -> sheet; Q maps raw iso
     projection (u, v) -> sheet."""
@@ -438,12 +441,11 @@ def iso_callouts(msp, P, Q, posts):
     ot, _, _ = triangle_geometry()
     y_front = D - FRAME_DEPTH
     fi = ft_in
-    h = 3.0
     # top-left corner: canopy
     callout_2d(msp, P(ot[2][0], ot[2][1], TRI_TOP), Q(34, 118),
                ["TRIANGLE CANOPY", f"{fi(TRI_SIDE)} EQUILATERAL", f"TOP AT {fi(TRI_TOP)}"], h)
     # top-right corner: header beam
-    callout_2d(msp, P(W / 2 + 24, D - HEADER_FROM_BACK - MEMBER / 2, FRAME_H), Q(128, 114),
+    callout_2d(msp, P(W / 2 + 24, D - HEADER_FROM_BACK - MEMBER / 2, FRAME_H), Q(150, 116),
                ["HEADER BEAM", f"{MEMBER:g}\" SQ., TOP AT {fi(FRAME_H)}"], h)
     # left, below the left frame: canopy posts
     callout_2d(msp, P(posts[0][0], posts[0][1] - TRI_POST / 2, 34), Q(33, 44),
@@ -453,6 +455,60 @@ def iso_callouts(msp, P, Q, posts):
     # bottom-right corner: side frame
     callout_2d(msp, P(W, y_front + MEMBER / 2, FRAME_H * 0.6), Q(132, -34),
                ["SIDE FRAME (TYP.)", f"{MEMBER:g}\" SQ. POSTS + RAIL", f"{fi(FRAME_H)} HIGH"], h)
+
+
+# ------------------------------------------------------------ view drawing
+# Each draws one view (linework + dimensions + labels) with its origin at
+# (dx, dy). `ts` scales annotation text for on-screen images.
+def draw_plan(msp, plan, dx, dy, ts=1.0):
+    W, D = BOOTH_W, BOOTH_D
+    ot, _, _ = triangle_geometry()
+    add_segments(msp, plan, dx, dy)
+    P = lambda x, y: (x + dx, y + dy)  # noqa: E731
+    o = 18 * ts
+    dim(msp, P(0, 0), P(W, 0), P(0, -o))                                   # booth width
+    dim(msp, P(0, 0), P(0, D), P(-o, 0), vertical=True)                    # booth depth
+    dim(msp, P(ot[0][0], ot[0][1]), P(ot[1][0], ot[1][1]), P(0, D + 16 * ts))  # triangle
+    dim(msp, P(W, D - FRAME_DEPTH), P(W, D), P(W + o, 0), vertical=True)   # side frame depth
+    dim(msp, P(ot[0][0], ot[0][1]), P(ot[0][0], D), P(ot[0][0] + 12, 0), vertical=True)
+    text(msp, "AISLE", *P(W / 2, -o - 12 * ts), 4.0 * ts)
+    hb = P(W / 2, D - HEADER_FROM_BACK / 2)
+    lt = 2.5 * min(ts, 1.1)   # labels inside tight spaces grow less
+    text(msp, "HEADER BEAM (ABOVE)", hb[0], hb[1], lt)
+    cen = P(W / 2, ot[0][1] - TRI_BAND - 8)   # widest part of the opening
+    text(msp, "TRIANGLE", cen[0], cen[1] + lt * 0.8, lt)
+    text(msp, "CANOPY ABOVE", cen[0], cen[1] - lt * 0.8, lt)
+
+
+def draw_iso(msp, iso, dx, dy, posts, ts=1.0):
+    add_segments(msp, iso, dx, dy)
+    iso_callouts(msp, lambda x, y, z: (VIEWS["iso"](x, y, z)[0] + dx,
+                                       VIEWS["iso"](x, y, z)[1] + dy),
+                 lambda u, v: (u + dx, v + dy), posts, h=3.0 * min(ts, 1.25))
+
+
+def draw_front(msp, front, dx, dy, ts=1.0):
+    W = BOOTH_W
+    ot, _, _ = triangle_geometry()
+    add_segments(msp, front, dx, dy)
+    F = lambda u, v: (u + dx, v + dy)  # noqa: E731
+    o = 16 * ts
+    dim(msp, F(0, 0), F(W, 0), F(0, -o))
+    dim(msp, F(0, 0), F(0, FRAME_H), F(-o, 0), vertical=True)
+    dim(msp, F(ot[1][0], 0), F(ot[1][0], TRI_TOP), F(W + o, 0), vertical=True)
+
+
+def draw_side(msp, side, dx, dy, posts, ts=1.0):
+    D = BOOTH_D
+    add_segments(msp, side, dx, dy)
+    Sd = lambda u, v: (u + dx, v + dy)  # noqa: E731
+    o = 16 * ts
+    apex_post_front = posts[2][1] - TRI_POST / 2
+    dim(msp, Sd(0, 0), Sd(D, 0), Sd(0, -o))
+    dim(msp, Sd(apex_post_front, 0), Sd(D, 0), Sd(0, -o - 10 * ts))
+    dim(msp, Sd(0, 0), Sd(0, TRI_TOP), Sd(-o, 0), vertical=True)
+    dim(msp, Sd(D, 0), Sd(D, FRAME_H), Sd(D + o, 0), vertical=True)
+    text(msp, "AISLE", Sd(-8, 0)[0], Sd(0, -6 * ts)[1], 3.0 * ts, align="MIDDLE_RIGHT")
 
 
 def build_sheet(faces, posts):
@@ -485,61 +541,32 @@ def build_sheet(faces, posts):
     row2_base = by0 + 2.6 * S              # floor line of elevations
 
     W, D = BOOTH_W, BOOTH_D
-    ot, ob, inn = triangle_geometry()
-    apex_y = ot[2][1]
 
     # PLAN ----------------------------------------------------------------
     pdx = col1_cx - W / 2
     pdy = row1_base + 2.1 * S
-    add_segments(msp, plan, pdx, pdy)
-    P = lambda x, y: (x + pdx, y + pdy)  # noqa: E731
-    dim(msp, P(0, 0), P(W, 0), P(0, -18))                                  # 10'-0" width
-    dim(msp, P(0, 0), P(0, D), P(-18, 0), vertical=True)                   # 10'-0" depth
-    dim(msp, P(ot[0][0], ot[0][1]), P(ot[1][0], ot[1][1]), P(0, D + 16))   # triangle width
-    dim(msp, P(W, D - FRAME_DEPTH), P(W, D), P(W + 18, 0), vertical=True)  # side frame depth
-    dim(msp, P(ot[0][0], ot[0][1]), P(ot[0][0], D), P((MEMBER + ot[0][0]) / 2, 0), vertical=True)
-    text(msp, "AISLE", P(W / 2, -30)[0], P(W / 2, -30)[1], 4.0)
-    # part labels inside the plan
-    hb = P(W / 2, D - HEADER_FROM_BACK / 2)
-    text(msp, "HEADER BEAM (ABOVE)", hb[0], hb[1], 2.5)
-    cen = P(W / 2, (ot[0][1] * 2 + ot[2][1]) / 3)
-    text(msp, "TRIANGLE", cen[0], cen[1] + 2, 2.5)
-    text(msp, "CANOPY ABOVE", cen[0], cen[1] - 2, 2.5)
-    view_title(msp, "PLAN VIEW", P(W / 2, 0)[0], P(0, -42)[1])
+    draw_plan(msp, plan, pdx, pdy)
+    view_title(msp, "PLAN VIEW", pdx + W / 2, pdy - 42)
 
     # ISOMETRIC -----------------------------------------------------------
     ix0, iy0, ix1, iy1 = bbox(iso)
     idx = col2_cx - (ix0 + ix1) / 2
     idy = by1 - 0.6 * S - iy1               # top of iso just under the border
-    add_segments(msp, iso, idx, idy)
-    iso_callouts(msp, lambda x, y, z: (VIEWS["iso"](x, y, z)[0] + idx,
-                                       VIEWS["iso"](x, y, z)[1] + idy),
-                 lambda u, v: (u + idx, v + idy), posts)
+    draw_iso(msp, iso, idx, idy, posts)
     view_title(msp, "ISOMETRIC VIEW", col2_cx, pdy - 42, scale=False)
     text(msp, "NOT TO SCALE", col2_cx, pdy - 53, 3.5)
 
     # FRONT ELEVATION -----------------------------------------------------
     fdx = col1_cx - W / 2
     fdy = row2_base
-    add_segments(msp, front, fdx, fdy)
-    F = lambda u, v: (u + fdx, v + fdy)  # noqa: E731
-    dim(msp, F(0, 0), F(W, 0), F(0, -16))
-    dim(msp, F(0, 0), F(0, FRAME_H), F(-16, 0), vertical=True)
-    dim(msp, F(ot[1][0], 0), F(ot[1][0], TRI_TOP), F(W + 16, 0), vertical=True)
-    view_title(msp, "FRONT ELEVATION", F(W / 2, 0)[0], F(0, -34)[1])
+    draw_front(msp, front, fdx, fdy)
+    view_title(msp, "FRONT ELEVATION", fdx + W / 2, fdy - 34)
 
     # SIDE ELEVATION ------------------------------------------------------
     sdx = col2_cx - D / 2
     sdy = row2_base
-    add_segments(msp, side, sdx, sdy)
-    Sd = lambda u, v: (u + sdx, v + sdy)  # noqa: E731
-    apex_post_front = posts[2][1] - TRI_POST / 2
-    dim(msp, Sd(0, 0), Sd(D, 0), Sd(0, -16))
-    dim(msp, Sd(apex_post_front, 0), Sd(D, 0), Sd(0, -26))
-    dim(msp, Sd(0, 0), Sd(0, TRI_TOP), Sd(-16, 0), vertical=True)
-    dim(msp, Sd(D, 0), Sd(D, FRAME_H), Sd(D + 16, 0), vertical=True)
-    text(msp, "AISLE", Sd(-8, 0)[0], Sd(0, -6)[1], 3.0, align="MIDDLE_RIGHT")
-    view_title(msp, "SIDE ELEVATION", Sd(D / 2, 0)[0], Sd(0, -44)[1])
+    draw_side(msp, side, sdx, sdy, posts)
+    view_title(msp, "SIDE ELEVATION", sdx + D / 2, sdy - 44)
 
     # ---- title block ----------------------------------------------------
     tx = tbx + 0.2 * S
@@ -641,6 +668,102 @@ def export_pdf_png(doc, sheet_size, pdf_path, png_path):
         plt.close(fig)
 
 
+# ------------------------------------------------------ shareable images
+IMG_TS = 1.5          # annotation text scale for on-screen images
+IMG_GAP = 60.0        # space between views, model inches
+IMG_MARGIN = 40.0
+
+
+def build_views_doc(faces, posts):
+    """The four views on a plain white canvas, laid out like the original
+    20' x 20' drawing: plan top-left, iso top-right, front elevation
+    bottom-left, side elevation bottom-right. Returns (doc, regions)."""
+    from ezdxf import bbox as ezbbox
+
+    segs = {v: hidden_line_view(faces, v) for v in ("plan", "iso", "front", "side")}
+    draw = {
+        "plan": lambda m, dx, dy: draw_plan(m, segs["plan"], dx, dy, IMG_TS),
+        "iso": lambda m, dx, dy: draw_iso(m, segs["iso"], dx, dy, posts, IMG_TS),
+        "front": lambda m, dx, dy: draw_front(m, segs["front"], dx, dy, IMG_TS),
+        "side": lambda m, dx, dy: draw_side(m, segs["side"], dx, dy, posts, IMG_TS),
+    }
+    # pass 1: measure each view drawn at the origin
+    ext = {}
+    for name, fn in draw.items():
+        scratch = setup_doc(txt=3.0 * IMG_TS)
+        fn(scratch.modelspace(), 0.0, 0.0)
+        e = ezbbox.extents(scratch.modelspace())
+        ext[name] = (e.extmin.x, e.extmin.y, e.extmax.x, e.extmax.y)
+    w = lambda n: ext[n][2] - ext[n][0]  # noqa: E731
+    h = lambda n: ext[n][3] - ext[n][1]  # noqa: E731
+    col_w = [max(w("plan"), w("front")), max(w("iso"), w("side"))]
+    row_h = [max(h("plan"), h("iso")), max(h("front"), h("side"))]
+    cells = {"plan": (0, 0), "iso": (1, 0), "front": (0, 1), "side": (1, 1)}
+
+    # pass 2: place each view centred in its grid cell (bottom-aligned in
+    # the lower row so both elevations share a floor line)
+    doc = setup_doc(txt=3.0 * IMG_TS)
+    msp = doc.modelspace()
+    regions = {}
+    for name, (c, r) in cells.items():
+        cx0 = sum(col_w[:c]) + IMG_GAP * c
+        cy_top = -(sum(row_h[:r]) + IMG_GAP * r)
+        x0, y0, x1, y1 = ext[name]
+        dx = cx0 + (col_w[c] - w(name)) / 2 - x0
+        if r == 1:
+            dy = cy_top - row_h[r] - y0
+        else:
+            dy = cy_top - (row_h[r] + h(name)) / 2 - y0
+        draw[name](msp, dx, dy)
+        regions[name] = (x0 + dx, y0 + dy, x1 + dx, y1 + dy)
+    xs = [v for r in regions.values() for v in (r[0], r[2])]
+    ys = [v for r in regions.values() for v in (r[1], r[3])]
+    regions["all"] = (min(xs), min(ys), max(xs), max(ys))
+    return doc, regions
+
+
+def render_region(doc, region, path, width_px, margin=IMG_MARGIN):
+    x0, y0, x1, y1 = region
+    x0, y0, x1, y1 = x0 - margin, y0 - margin, x1 + margin, y1 + margin
+    dpi = 200
+    fw = width_px / dpi
+    fh = fw * (y1 - y0) / (x1 - x0)
+    cfg = Configuration(
+        color_policy=ColorPolicy.BLACK,
+        background_policy=BackgroundPolicy.WHITE,
+        lineweight_policy=LineweightPolicy.ABSOLUTE,
+        lineweight_scaling=2.0 * width_px / 3000,   # bold outlines like the original
+        min_lineweight=0.1,
+    )
+    fig = plt.figure(figsize=(fw, fh))
+    ax = fig.add_axes([0, 0, 1, 1])
+    Frontend(RenderContext(doc), MatplotlibBackend(ax), config=cfg).draw_layout(
+        doc.modelspace(), finalize=True)
+    fig.set_size_inches(fw, fh)
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y0, y1)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    fig.savefig(path, dpi=dpi, facecolor="white")
+    plt.close(fig)
+
+
+def export_images(faces, posts):
+    from PIL import Image
+
+    doc, regions = build_views_doc(faces, posts)
+    out = []
+    base = os.path.join(OUT_DIR, "booth_10x10_views")
+    render_region(doc, regions["all"], base + ".png", 3000)
+    Image.open(base + ".png").convert("RGB").save(base + ".jpg", quality=92)
+    out += [base + ".png", base + ".jpg"]
+    for name in ("plan", "iso", "front", "side"):
+        p = os.path.join(OUT_DIR, f"booth_10x10_{name}.png")
+        render_region(doc, regions[name], p, 1800, margin=25)
+        out.append(p)
+    return out
+
+
 def main():
     faces, posts = build_model()
     doc, size = build_sheet(faces, posts)
@@ -648,6 +771,7 @@ def main():
     doc.saveas(base + ".dxf")
     export_pdf_png(doc, size, base + ".pdf", base + ".png")
     print("wrote", base + ".{dxf,pdf,png}")
+    print("wrote", ", ".join(os.path.basename(p) for p in export_images(faces, posts)))
 
 
 if __name__ == "__main__":

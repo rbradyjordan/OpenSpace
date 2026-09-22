@@ -4,6 +4,13 @@ A 10' x 10' version of the 20' x 20' triangle-canopy booth: two side frames on
 the back half, a header beam between them, and a raised triangular canopy on
 three posts. Everything stays inside the 10' x 10' footprint and under 8'-0".
 
+### Shareable images (same layout as the original 20' x 20' drawing)
+
+| File | What it is |
+|---|---|
+| `booth_10x10_views.png` / `.jpg` | Plan, isometric, front and side elevations on a white background, with dimensions and labels. 3000 px wide; the JPG is smaller for texting/email. |
+| `booth_10x10_plan.png`, `_iso.png`, `_front.png`, `_side.png` | Each view on its own. |
+
 ### 3D model (open one of these to orbit the booth)
 
 | File | Open it with |
@@ -54,6 +61,6 @@ exhibitor manual before submitting.
 
 ```
 pip install ezdxf matplotlib trimesh networkx shapely mapbox_earcut usd-core pycollada
-python3 generate_booth_10x10.py   # 2D sheet
+python3 generate_booth_10x10.py   # 2D sheet + shareable images
 python3 export_3d.py              # 3D model files + viewer
 ```
