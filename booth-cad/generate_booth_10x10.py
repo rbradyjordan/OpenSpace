@@ -9,9 +9,10 @@ Builds a simple 3D model (boxes + triangle frame), then projects it to
 plan / front / side / isometric views with hidden-line removal and writes:
 
   booth_10x10_drawing.dxf   2D drawing sheet (model space, 1 unit = 1 inch)
-  booth_10x10_3d.dxf        3D model (3DFACE surfaces)
   booth_10x10_drawing.pdf   print-ready sheet, ARCH C (24" x 18")
   booth_10x10_drawing.png   preview
+
+The 3D model files come from export_3d.py, which reuses build_parts().
 
 All dimensions are in inches. Edit the PARAMETERS block and re-run:
     pip install ezdxf matplotlib
@@ -150,42 +151,55 @@ def _fit_post(po, pi, ob, inn):
                      "increase TRI_BAND or reduce TRI_POST / TRI_BEVEL")
 
 
-def build_model():
-    faces = []
+def build_parts():
+    """The booth as named solid parts: [(name, kind, faces)], where kind is
+    'frame' or 'canopy'. Every part is a closed solid."""
+    parts = []
     W, D, M = BOOTH_W, BOOTH_D, MEMBER
-    # Floor (carpet line only, zero thickness)
-    faces.append(Face([(0, 0, 0), (W, 0, 0), (W, D, 0), (0, D, 0)], "A-FLOR"))
 
     # Side frames: back post, front post, top rail between them
     y_front = D - FRAME_DEPTH
-    for x0 in (0.0, W - M):
-        faces += box(x0, D - M, 0, x0 + M, D, FRAME_H)                    # back post
-        faces += box(x0, y_front, 0, x0 + M, y_front + M, FRAME_H)        # front post
-        faces += box(x0, y_front + M, FRAME_H - M, x0 + M, D - M, FRAME_H)  # rail
+    for side, x0 in (("Left", 0.0), ("Right", W - M)):
+        parts.append((f"{side}_Back_Post", "frame", box(x0, D - M, 0, x0 + M, D, FRAME_H)))
+        parts.append((f"{side}_Front_Post", "frame",
+                      box(x0, y_front, 0, x0 + M, y_front + M, FRAME_H)))
+        parts.append((f"{side}_Top_Rail", "frame",
+                      box(x0, y_front + M, FRAME_H - M, x0 + M, D - M, FRAME_H)))
 
     # Header beam spanning between the side rails
     yb = D - HEADER_FROM_BACK - M
-    faces += box(M, yb, FRAME_H - M, W - M, yb + M, FRAME_H)
+    parts.append(("Header_Beam", "frame", box(M, yb, FRAME_H - M, W - M, yb + M, FRAME_H)))
 
     # Triangle canopy: top band, bottom band, battered fascia, inner face
     ot, ob, inn = triangle_geometry()
     zt, zb = TRI_TOP, TRI_TOP - TRI_THICK
-    inner_bot = inn  # inner face is vertical
+    canopy = []
     for i in range(3):
         j = (i + 1) % 3
-        # top band segment (trapezoid) - miter edges are internal splits
-        faces.append(Face([(*ot[i], zt), (*ot[j], zt), (*inn[j], zt), (*inn[i], zt)],
-                          "A-STRC", draw=[True, False, True, False]))
-        faces.append(Face([(*ob[i], zb), (*ob[j], zb), (*inner_bot[j], zb), (*inner_bot[i], zb)],
-                          "A-STRC", draw=[True, False, True, False]))
-        faces.append(Face([(*ot[i], zt), (*ot[j], zt), (*ob[j], zb), (*ob[i], zb)], "A-STRC"))
-        faces.append(Face([(*inn[i], zt), (*inn[j], zt), (*inn[j], zb), (*inn[i], zb)], "A-STRC"))
+        # top / bottom band segments (trapezoids) - miter edges are internal splits
+        canopy.append(Face([(*ot[i], zt), (*ot[j], zt), (*inn[j], zt), (*inn[i], zt)],
+                           "A-STRC", draw=[True, False, True, False]))
+        canopy.append(Face([(*ob[i], zb), (*ob[j], zb), (*inn[j], zb), (*inn[i], zb)],
+                           "A-STRC", draw=[True, False, True, False]))
+        canopy.append(Face([(*ot[i], zt), (*ot[j], zt), (*ob[j], zb), (*ob[i], zb)], "A-STRC"))
+        canopy.append(Face([(*inn[i], zt), (*inn[j], zt), (*inn[j], zb), (*inn[i], zb)], "A-STRC"))
+    parts.append(("Triangle_Canopy", "canopy", canopy))
 
     # Canopy posts at the three corners of the frame, on the corner bisector,
     # placed so the whole post section sits under the canopy's bottom band.
     posts = [_fit_post(po, pi, ob, inn) for po, pi in zip(ob, inn)]
-    for (px, py) in posts:
-        faces += centered_box(px, py, TRI_POST, 0, zb)
+    for name, (px, py) in zip(("Left", "Right", "Front"), posts):
+        parts.append((f"Canopy_Post_{name}", "frame", centered_box(px, py, TRI_POST, 0, zb)))
+    return parts, posts
+
+
+def build_model():
+    """Flat face list for the 2D views: floor outline + all parts."""
+    W, D = BOOTH_W, BOOTH_D
+    parts, posts = build_parts()
+    faces = [Face([(0, 0, 0), (W, 0, 0), (W, D, 0), (0, D, 0)], "A-FLOR")]
+    for _, _, part_faces in parts:
+        faces += part_faces
     return faces, posts
 
 
@@ -554,24 +568,6 @@ def build_sheet(faces, posts):
     return doc, (SW, SH)
 
 
-# ----------------------------------------------------------- 3D model file
-def build_3d(faces):
-    doc = ezdxf.new("R2010", setup=True)
-    doc.units = ezdxf.units.IN
-    doc.header["$INSUNITS"] = 1
-    doc.layers.add("A-FLOR", color=8)
-    doc.layers.add("A-STRC", color=7)
-    msp = doc.modelspace()
-    for face in faces:
-        pts = face.pts if len(face.pts) == 4 else face.pts + [face.pts[-1]]
-        invisible = 0
-        for i, d in enumerate(face.draw):
-            if not d:
-                invisible |= 1 << i
-        msp.add_3dface(pts, dxfattribs={"layer": face.layer, "invisible_edges": invisible})
-    return doc
-
-
 # ------------------------------------------------------------------ export
 def export_pdf_png(doc, sheet_size, pdf_path, png_path):
     SW, SH = sheet_size
@@ -601,9 +597,8 @@ def main():
     doc, size = build_sheet(faces, posts)
     base = os.path.join(OUT_DIR, "booth_10x10_drawing")
     doc.saveas(base + ".dxf")
-    build_3d(faces).saveas(os.path.join(OUT_DIR, "booth_10x10_3d.dxf"))
     export_pdf_png(doc, size, base + ".pdf", base + ".png")
-    print("wrote", base + ".{dxf,pdf,png}", "and booth_10x10_3d.dxf")
+    print("wrote", base + ".{dxf,pdf,png}")
 
 
 if __name__ == "__main__":

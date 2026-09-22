@@ -4,13 +4,32 @@ A 10' x 10' version of the 20' x 20' triangle-canopy booth: two side frames on
 the back half, a header beam between them, and a raised triangular canopy on
 three posts. Everything stays inside the 10' x 10' footprint and under 8'-0".
 
+### 3D model (open one of these to orbit the booth)
+
+| File | Open it with |
+|---|---|
+| `booth_10x10.usdz` | **Mac / iPhone / iPad**: double-click, or select and press Space (Quick Look). |
+| `booth_10x10_viewer.html` | **Any browser**: double-click, then drag to orbit (needs internet for three.js). |
+| `booth_10x10.dae` | **SketchUp**: File > Import (Collada). |
+| `booth_10x10_3d.dxf` | **AutoCAD**: one MESH solid per part, opens in an isometric view. Inches, Z up. |
+| `booth_10x10.glb` | Windows 3D Viewer, Blender, web viewers. |
+| `booth_10x10.obj` / `.mtl`, `booth_10x10.stl` | Any 3D/CAD tool. Inches, Z up. |
+| `booth_10x10_3d_views.png` | Quick shaded preview. |
+
+### 2D drawing sheet
+
 | File | What it is |
 |---|---|
-| `booth_10x10_drawing.pdf` | Print/submit-ready sheet A-1 (ARCH C 24"x18", 1/2" = 1'-0"). Also prints fine scaled to 11x17. |
-| `booth_10x10_drawing.dxf` | Same sheet as a CAD file (opens in AutoCAD, Vectorworks, SketchUp, DraftSight, LibreCAD). Model units are inches; layers `A-STRC`, `A-FLOR`, `A-DIMS`, `A-ANNO`, `A-TTLB`. |
-| `booth_10x10_3d.dxf` | 3D model of the structure (3DFACE surfaces) for orbiting/rendering. |
-| `booth_10x10_drawing.png` | Quick preview image. |
-| `generate_booth_10x10.py` | Parametric source. Edit the `PARAMETERS` block and re-run to regenerate everything. |
+| `booth_10x10_drawing.pdf` | Print/submit-ready sheet A-1 (ARCH C 24"x18", 1/2" = 1'-0"): plan, front and side elevations, isometric. Also prints fine scaled to 11x17. |
+| `booth_10x10_drawing.dxf` | Same sheet as a CAD file. Model units are inches; layers `A-STRC`, `A-FLOR`, `A-DIMS`, `A-ANNO`, `A-TTLB`. |
+| `booth_10x10_drawing.png` | Preview image of the sheet. |
+
+### Source
+
+`generate_booth_10x10.py` holds all the dimensions (the `PARAMETERS` block)
+and builds the 2D sheet. `export_3d.py` builds the 3D files from the same
+geometry, so the model and drawing always match. `viewer_template.html` is
+the browser viewer's page.
 
 ## Key dimensions
 
@@ -27,6 +46,7 @@ exhibitor manual before submitting.
 ## Regenerate
 
 ```
-pip install ezdxf matplotlib
-python3 generate_booth_10x10.py
+pip install ezdxf matplotlib trimesh networkx usd-core pycollada
+python3 generate_booth_10x10.py   # 2D sheet
+python3 export_3d.py              # 3D model files + viewer
 ```

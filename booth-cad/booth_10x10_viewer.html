@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}</style>
+</head>
+<body>
+<title>10x10 Booth Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #e9ecef;
+    --panel: #f6f7f8;
+    --ink: #1b1f24;
+    --muted: #5a636d;
+    --rule: #cfd5db;
+    --accent: #2c5a86;
+    --accent-ink: #ffffff;
+    --scene: #dde2e7;
+    --edge: #1b1f24;
+    --font-ui: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+    --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #14171b;
+      --panel: #1b1f24;
+      --ink: #e4e8ec;
+      --muted: #97a1ab;
+      --rule: #2d333a;
+      --accent: #7eaedb;
+      --accent-ink: #0f1a24;
+      --scene: #1f242a;
+      --edge: #0b0d10;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #14171b;
+    --panel: #1b1f24;
+    --ink: #e4e8ec;
+    --muted: #97a1ab;
+    --rule: #2d333a;
+    --accent: #7eaedb;
+    --accent-ink: #0f1a24;
+    --scene: #1f242a;
+    --edge: #0b0d10;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .app {
+    box-sizing: border-box;
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 16px;
+    padding: 16px;
+  }
+  .stage {
+    position: relative;
+    min-height: 320px;
+    border: 1px solid var(--rule);
+    background: var(--scene);
+    overflow: hidden;
+  }
+  #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .toolbar {
+    position: absolute;
+    left: 12px; bottom: 12px; right: 12px;
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    pointer-events: none;
+  }
+  .toolbar > * { pointer-events: auto; }
+  .seg { display: flex; border: 1px solid var(--rule); background: var(--panel); }
+  .seg button, .spin {
+    font: 500 13px/1 var(--font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    padding: 9px 12px;
+    cursor: pointer;
+  }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .spin { border: 1px solid var(--rule); background: var(--panel); }
+  .spin[aria-pressed="true"] { color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hint {
+    position: absolute; top: 10px; left: 12px;
+    font: 400 12px/1.3 var(--font-num);
+    color: var(--muted);
+    pointer-events: none;
+  }
+  aside { display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+  .sheet-id {
+    font: 500 12px/1 var(--font-num);
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  h1 {
+    margin: 6px 0 4px;
+    font-weight: 600;
+    font-size: 30px;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .sub { margin: 0; color: var(--muted); }
+  h2 {
+    margin: 0 0 6px;
+    font: 600 12px/1 var(--font-ui);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  dl { margin: 0; display: grid; grid-template-columns: 1fr auto; }
+  dt, dd { padding: 7px 0; border-bottom: 1px solid var(--rule); }
+  dd {
+    margin: 0;
+    font: 500 14px/1.3 var(--font-num);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .note { margin: 0; color: var(--muted); font-size: 13px; }
+  .legend { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .sw { width: 14px; height: 14px; border: 1px solid var(--rule); display: inline-block; }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; height: auto; }
+    .stage { height: 62vh; min-height: 340px; }
+    h1 { font-size: 26px; }
+  }
+</style>
+
+<div class="app">
+  <section class="stage" aria-label="3D model of the booth">
+    <canvas id="view"></canvas>
+    <div class="hint" id="hint">Drag to orbit · scroll or pinch to zoom</div>
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="Camera view">
+        <button type="button" id="v-iso" data-view="iso" aria-pressed="true">Iso</button>
+        <button type="button" id="v-front" data-view="front" aria-pressed="false">Front</button>
+        <button type="button" id="v-side" data-view="side" aria-pressed="false">Side</button>
+        <button type="button" id="v-top" data-view="top" aria-pressed="false">Top</button>
+      </div>
+      <button type="button" class="spin" id="spin" aria-pressed="false">Spin</button>
+    </div>
+  </section>
+
+  <aside>
+    <div>
+      <div class="sheet-id">IAAPA EXPO · SHEET A-1 MODEL</div>
+      <h1>10' × 10' Triangle Canopy Booth</h1>
+      <p class="sub">A 10' × 10' version of the 20' × 20' concept. The aisle is at the front.</p>
+    </div>
+
+    <div>
+      <h2>Dimensions</h2>
+      <dl>
+        <dt>Footprint</dt><dd>10'-0" × 10'-0"</dd>
+        <dt>Overall height</dt><dd>8'-0"</dd>
+        <dt>Side frames + header</dt><dd>7'-6"</dd>
+        <dt>Side frame depth</dt><dd>5'-3"</dd>
+        <dt>Canopy (equilateral)</dt><dd>6'-9"</dd>
+        <dt>Clear under canopy</dt><dd>7'-7"</dd>
+        <dt>Posts / beams</dt><dd>6" sq.</dd>
+        <dt>Canopy posts</dt><dd>(3) 5" sq.</dd>
+      </dl>
+    </div>
+
+    <div>
+      <h2>Materials shown</h2>
+      <div class="legend">
+        <span><i class="sw" style="background:#2e2e30"></i>Frame: posts, rails, header beam</span>
+        <span><i class="sw" style="background:#f2f2f0"></i>Triangle canopy</span>
+        <span><i class="sw" style="background:#8c929a"></i>Carpet</span>
+      </div>
+    </div>
+
+    <p class="note">Concept model. Member sizes are nominal and final sizes are up to the fabricator. Check the height and line-of-sight rules in the IAAPA Expo exhibitor manual.</p>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  var GLB_BASE64 = "Z2xURgIAAACcLwAA4BcAAEpTT057InNjZW5lIjowLCJzY2VuZXMiOlt7Im5vZGVzIjpbMCwxLDIsMyw0LDUsNiw3LDgsOSwxMCwxMV19XSwiYXNzZXQiOnsidmVyc2lvbiI6IjIuMCIsImdlbmVyYXRvciI6Imh0dHBzOi8vZ2l0aHViLmNvbS9taWtlZGgvdHJpbWVzaCJ9LCJhY2Nlc3NvcnMiOlt7ImNvbXBvbmVudFR5cGUiOjUxMjUsInR5cGUiOiJTQ0FMQVIiLCJidWZmZXJWaWV3IjowLCJjb3VudCI6MzYsIm1heCI6WzM1XSwibWluIjpbMF19LHsiY29tcG9uZW50VHlwZSI6NTEyNiwidHlwZSI6IlZFQzMiLCJieXRlT2Zmc2V0IjowLCJidWZmZXJWaWV3IjoxLCJjb3VudCI6MzYsIm1heCI6WzEuNTI0MDAwMDQ4NjM3MzkwMSwwLjAsMS41MjQwMDAwNDg2MzczOTAxXSwibWluIjpbLTEuNTI0MDAwMDQ4NjM3MzkwMSwtMC4wMTI2OTk5OTk4NDY1MTgwNCwtMS41MjQwMDAwNDg2MzczOTAxXX0seyJjb21wb25lbnRUeXBlIjo1MTI2LCJ0eXBlIjoiVkVDMyIsImJ5dGVPZmZzZXQiOjAsImJ1ZmZlclZpZXciOjIsImNvdW50IjozNiwibWF4IjpbLTEuMzcxNjAwMDMxODUyNzIyMiwyLjI4NjAwMDAxMzM1MTQ0MDQsLTEuMzcxNjAwMDMxODUyNzIyMl0sIm1pbiI6Wy0xLjUyNDAwMDA0ODYzNzM5MDEsMC4wLC0xLjUyNDAwMDA0ODYzNzM5MDFdfSx7ImNvbXBvbmVudFR5cGUiOjUxMjYsInR5cGUiOiJWRUMzIiwiYnl0ZU9mZnNldCI6MCwiYnVmZmVyVmlldyI6MywiY291bnQiOjM2LCJtYXgiOlstMS4zNzE2MDAwMzE4NTI3MjIyLDIuMjg2MDAwMDEzMzUxNDQwNCwwLjA3NjIwMDAwMDk0MTc1MzM5XSwibWluIjpbLTEuNTI0MDAwMDQ4NjM3MzkwMSwwLjAsLTAuMDc2MjAwMDAwOTQxNzUzMzldfSx7ImNvbXBvbmVudFR5cGUiOjUxMjYsInR5cGUiOiJWRUMzIiwiYnl0ZU9mZnNldCI6MCwiYnVmZmVyVmlldyI6NCwiY291bnQiOjM2LCJtYXgiOlstMS4zNzE2MDAwMzE4NTI3MjIyLDIuMjg2MDAwMDEzMzUxNDQwNCwtMC4wNzYyMDAwMDA5NDE3NTMzOV0sIm1pbiI6Wy0xLjUyNDAwMDA0ODYzNzM5MDEsMi4xMzM1OTk5OTY1NjY3NzI1LC0xLjM3MTYwMDAzMTg1MjcyMjJdfSx7ImNvbXBvbmVudFR5cGUiOjUxMjYsInR5cGUiOiJWRUMzIiwiYnl0ZU9mZnNldCI6MCwiYnVmZmVyVmlldyI6NSwiY291bnQiOjM2LCJtYXgiOlsxLjUyNDAwMDA0ODYzNzM5MDEsMi4yODYwMDAwMTMzNTE0NDA0LC0xLjM3MTYwMDAzMTg1MjcyMjJdLCJtaW4iOlsxLjM3MTYwMDAzMTg1MjcyMjIsMC4wLC0xLjUyNDAwMDA0ODYzNzM5MDFdfSx7ImNvbXBvbmVudFR5cGUiOjUxMjYsInR5cGUiOiJWRUMzIiwiYnl0ZU9mZnNldCI6MCwiYnVmZmVyVmlldyI6NiwiY291bnQiOjM2LCJtYXgiOlsxLjUyNDAwMDA0ODYzNzM5MDEsMi4yODYwMDAwMTMzNTE0NDA0LDAuMDc2MjAwMDAwOTQxNzUzMzldLCJtaW4iOlsxLjM3MTYwMDAzMTg1MjcyMjIsMC4wLC0wLjA3NjIwMDAwMDk0MTc1MzM5XX0seyJjb21wb25lbnRUeXBlIjo1MTI2LCJ0eXBlIjoiVkVDMyIsImJ5dGVPZmZzZXQiOjAsImJ1ZmZlclZpZXciOjcsImNvdW50IjozNiwibWF4IjpbMS41MjQwMDAwNDg2MzczOTAxLDIuMjg2MDAwMDEzMzUxNDQwNCwtMC4wNzYyMDAwMDA5NDE3NTMzOV0sIm1pbiI6WzEuMzcxNjAwMDMxODUyNzIyMiwyLjEzMzU5OTk5NjU2Njc3MjUsLTEuMzcxNjAwMDMxODUyNzIyMl19LHsiY29tcG9uZW50VHlwZSI6NTEyNiwidHlwZSI6IlZFQzMiLCJieXRlT2Zmc2V0IjowLCJidWZmZXJWaWV3Ijo4LCJjb3VudCI6MzYsIm1heCI6WzEuMzcxNjAwMDMxODUyNzIyMiwyLjI4NjAwMDAxMzM1MTQ0MDQsLTEuMDY2Nzk5OTk4MjgzMzg2Ml0sIm1pbiI6Wy0xLjM3MTYwMDAzMTg1MjcyMjIsMi4xMzM1OTk5OTY1NjY3NzI1LC0xLjIxOTIwMDAxNTA2ODA1NDJdfSx7ImNvbXBvbmVudFR5cGUiOjUxMjUsInR5cGUiOiJTQ0FMQVIiLCJidWZmZXJWaWV3Ijo5LCJjb3VudCI6NzIsIm1heCI6WzcxXSwibWluIjpbMF19LHsiY29tcG9uZW50VHlwZSI6NTEyNiwidHlwZSI6IlZFQzMiLCJieXRlT2Zmc2V0IjowLCJidWZmZXJWaWV3IjoxMCwiY291bnQiOjcyLCJtYXgiOlsxLjAyODY5OTk5NDA4NzIxOTIsMi40Mzg0MDAwMzAxMzYxMDg0LDEuNDc2OTYwNjU5MDI3MDk5Nl0sIm1pbiI6Wy0xLjAyODY5OTk5NDA4NzIxOTIsMi4zMTEzOTk5MzY2NzYwMjU0LC0wLjMwNDgwMDAwMzc2NzAxMzU1XX0seyJjb21wb25lbnRUeXBlIjo1MTI2LCJ0eXBlIjoiVkVDMyIsImJ5dGVPZmZzZXQiOjAsImJ1ZmZlclZpZXciOjExLCJjb3VudCI6MzYsIm1heCI6Wy0wLjcyMzkwMDAyMDEyMjUyODEsMi4zMTEzOTk5MzY2NzYwMjU0LC0wLjEwMTU5OTk5ODc3MjE0NDMyXSwibWluIjpbLTAuODUwODk5OTk0MzczMzIxNSwwLjAsLTAuMjI4NTk5OTk1Mzc0Njc5NTddfSx7ImNvbXBvbmVudFR5cGUiOjUxMjYsInR5cGUiOiJWRUMzIiwiYnl0ZU9mZnNldCI6MCwiYnVmZmVyVmlldyI6MTIsImNvdW50IjozNiwibWF4IjpbMC44NTA4OTk5OTQzNzMzMjE1LDIuMzExMzk5OTM2Njc2MDI1NCwtMC4xMDE1OTk5OTg3NzIxNDQzMl0sIm1pbiI6WzAuNzIzOTAwMDIwMTIyNTI4MSwwLjAsLTAuMjI4NTk5OTk1Mzc0Njc5NTddfSx7ImNvbXBvbmVudFR5cGUiOjUxMjYsInR5cGUiOiJWRUMzIiwiYnl0ZU9mZnNldCI6MCwiYnVmZmVyVmlldyI6MTMsImNvdW50IjozNiwibWF4IjpbMC4wNjM1MDAwMDIwMjY1NTc5MiwyLjMxMTM5OTkzNjY3NjAyNTQsMS4yNTczMDAwMTkyNjQyMjEyXSwibWluIjpbLTAuMDYzNTAwMDAyMDI2NTU3OTIsMC4wLDEuMTMwMzAwMDQ1MDEzNDI3N119XSwibWVzaGVzIjpbeyJuYW1lIjoiQ2FycGV0IiwiZXh0cmFzIjp7InNoYXBlIjoiYm94IiwiZXh0ZW50cyI6WzEyMC4wLDEyMC4wLDAuNV19LCJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjoxfSwiaW5kaWNlcyI6MCwibW9kZSI6NCwibWF0ZXJpYWwiOjB9XX0seyJuYW1lIjoiTGVmdF9CYWNrX1Bvc3QiLCJleHRyYXMiOnsicHJvY2Vzc2VkIjp0cnVlfSwicHJpbWl0aXZlcyI6W3siYXR0cmlidXRlcyI6eyJQT1NJVElPTiI6Mn0sImluZGljZXMiOjAsIm1vZGUiOjQsIm1hdGVyaWFsIjoxfV19LHsibmFtZSI6IkxlZnRfRnJvbnRfUG9zdCIsImV4dHJhcyI6eyJwcm9jZXNzZWQiOnRydWV9LCJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjozfSwiaW5kaWNlcyI6MCwibW9kZSI6NCwibWF0ZXJpYWwiOjF9XX0seyJuYW1lIjoiTGVmdF9Ub3BfUmFpbCIsImV4dHJhcyI6eyJwcm9jZXNzZWQiOnRydWV9LCJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjo0fSwiaW5kaWNlcyI6MCwibW9kZSI6NCwibWF0ZXJpYWwiOjF9XX0seyJuYW1lIjoiUmlnaHRfQmFja19Qb3N0IiwiZXh0cmFzIjp7InByb2Nlc3NlZCI6dHJ1ZX0sInByaW1pdGl2ZXMiOlt7ImF0dHJpYnV0ZXMiOnsiUE9TSVRJT04iOjV9LCJpbmRpY2VzIjowLCJtb2RlIjo0LCJtYXRlcmlhbCI6MX1dfSx7Im5hbWUiOiJSaWdodF9Gcm9udF9Qb3N0IiwiZXh0cmFzIjp7InByb2Nlc3NlZCI6dHJ1ZX0sInByaW1pdGl2ZXMiOlt7ImF0dHJpYnV0ZXMiOnsiUE9TSVRJT04iOjZ9LCJpbmRpY2VzIjowLCJtb2RlIjo0LCJtYXRlcmlhbCI6MX1dfSx7Im5hbWUiOiJSaWdodF9Ub3BfUmFpbCIsImV4dHJhcyI6eyJwcm9jZXNzZWQiOnRydWV9LCJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjo3fSwiaW5kaWNlcyI6MCwibW9kZSI6NCwibWF0ZXJpYWwiOjF9XX0seyJuYW1lIjoiSGVhZGVyX0JlYW0iLCJleHRyYXMiOnsicHJvY2Vzc2VkIjp0cnVlfSwicHJpbWl0aXZlcyI6W3siYXR0cmlidXRlcyI6eyJQT1NJVElPTiI6OH0sImluZGljZXMiOjAsIm1vZGUiOjQsIm1hdGVyaWFsIjoxfV19LHsibmFtZSI6IlRyaWFuZ2xlX0Nhbm9weSIsImV4dHJhcyI6eyJwcm9jZXNzZWQiOnRydWV9LCJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjoxMH0sImluZGljZXMiOjksIm1vZGUiOjQsIm1hdGVyaWFsIjoyfV19LHsibmFtZSI6IkNhbm9weV9Qb3N0X0xlZnQiLCJleHRyYXMiOnsicHJvY2Vzc2VkIjp0cnVlfSwicHJpbWl0aXZlcyI6W3siYXR0cmlidXRlcyI6eyJQT1NJVElPTiI6MTF9LCJpbmRpY2VzIjowLCJtb2RlIjo0LCJtYXRlcmlhbCI6MX1dfSx7Im5hbWUiOiJDYW5vcHlfUG9zdF9SaWdodCIsImV4dHJhcyI6eyJwcm9jZXNzZWQiOnRydWV9LCJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjoxMn0sImluZGljZXMiOjAsIm1vZGUiOjQsIm1hdGVyaWFsIjoxfV19LHsibmFtZSI6IkNhbm9weV9Qb3N0X0Zyb250IiwiZXh0cmFzIjp7InByb2Nlc3NlZCI6dHJ1ZX0sInByaW1pdGl2ZXMiOlt7ImF0dHJpYnV0ZXMiOnsiUE9TSVRJT04iOjEzfSwiaW5kaWNlcyI6MCwibW9kZSI6NCwibWF0ZXJpYWwiOjF9XX1dLCJtYXRlcmlhbHMiOlt7InBick1ldGFsbGljUm91Z2huZXNzIjp7ImJhc2VDb2xvckZhY3RvciI6WzAuMjYyNzQ1MDk4MDM5MjE1NywwLjI4NjI3NDUwOTgwMzkyMTU1LDAuMzIxNTY4NjI3NDUwOTgwNCwxLjBdLCJyb3VnaG5lc3NGYWN0b3IiOjAuOCwibWV0YWxsaWNGYWN0b3IiOjAuMH0sIm5hbWUiOiJjYXJwZXQiLCJkb3VibGVTaWRlZCI6ZmFsc2V9LHsicGJyTWV0YWxsaWNSb3VnaG5lc3MiOnsiYmFzZUNvbG9yRmFjdG9yIjpbMC4wMjc0NTA5ODAzOTIxNTY4NjIsMC4wMjc0NTA5ODAzOTIxNTY4NjIsMC4wMzEzNzI1NDkwMTk2MDc4NCwxLjBdLCJyb3VnaG5lc3NGYWN0b3IiOjAuOCwibWV0YWxsaWNGYWN0b3IiOjAuMH0sIm5hbWUiOiJmcmFtZSIsImRvdWJsZVNpZGVkIjpmYWxzZX0seyJwYnJNZXRhbGxpY1JvdWdobmVzcyI6eyJiYXNlQ29sb3JGYWN0b3IiOlswLjg4NjI3NDUwOTgwMzkyMTUsMC44ODYyNzQ1MDk4MDM5MjE1LDAuODcwNTg4MjM1Mjk0MTE3NywxLjBdLCJyb3VnaG5lc3NGYWN0b3IiOjAuOCwibWV0YWxsaWNGYWN0b3IiOjAuMH0sIm5hbWUiOiJjYW5vcHkiLCJkb3VibGVTaWRlZCI6ZmFsc2V9XSwibm9kZXMiOlt7Im5hbWUiOiJDYXJwZXQiLCJtZXNoIjowfSx7Im5hbWUiOiJMZWZ0X0JhY2tfUG9zdCIsIm1lc2giOjF9LHsibmFtZSI6IkxlZnRfRnJvbnRfUG9zdCIsIm1lc2giOjJ9LHsibmFtZSI6IkxlZnRfVG9wX1JhaWwiLCJtZXNoIjozfSx7Im5hbWUiOiJSaWdodF9CYWNrX1Bvc3QiLCJtZXNoIjo0fSx7Im5hbWUiOiJSaWdodF9Gcm9udF9Qb3N0IiwibWVzaCI6NX0seyJuYW1lIjoiUmlnaHRfVG9wX1JhaWwiLCJtZXNoIjo2fSx7Im5hbWUiOiJIZWFkZXJfQmVhbSIsIm1lc2giOjd9LHsibmFtZSI6IlRyaWFuZ2xlX0Nhbm9weSIsIm1lc2giOjh9LHsibmFtZSI6IkNhbm9weV9Qb3N0X0xlZnQiLCJtZXNoIjo5fSx7Im5hbWUiOiJDYW5vcHlfUG9zdF9SaWdodCIsIm1lc2giOjEwfSx7Im5hbWUiOiJDYW5vcHlfUG9zdF9Gcm9udCIsIm1lc2giOjExfV0sImJ1ZmZlcnMiOlt7ImJ5dGVMZW5ndGgiOjYwNDh9XSwiYnVmZmVyVmlld3MiOlt7ImJ1ZmZlciI6MCwiYnl0ZU9mZnNldCI6MCwiYnl0ZUxlbmd0aCI6MTQ0fSx7ImJ1ZmZlciI6MCwiYnl0ZU9mZnNldCI6MTQ0LCJieXRlTGVuZ3RoIjo0MzJ9LHsiYnVmZmVyIjowLCJieXRlT2Zmc2V0Ijo1NzYsImJ5dGVMZW5ndGgiOjQzMn0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjEwMDgsImJ5dGVMZW5ndGgiOjQzMn0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjE0NDAsImJ5dGVMZW5ndGgiOjQzMn0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjE4NzIsImJ5dGVMZW5ndGgiOjQzMn0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjIzMDQsImJ5dGVMZW5ndGgiOjQzMn0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjI3MzYsImJ5dGVMZW5ndGgiOjQzMn0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjMxNjgsImJ5dGVMZW5ndGgiOjQzMn0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjM2MDAsImJ5dGVMZW5ndGgiOjI4OH0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjM4ODgsImJ5dGVMZW5ndGgiOjg2NH0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjQ3NTIsImJ5dGVMZW5ndGgiOjQzMn0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjUxODQsImJ5dGVMZW5ndGgiOjQzMn0seyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjU2MTYsImJ5dGVMZW5ndGgiOjQzMn1dfSAgoBcAAEJJTgAAAAAAAQAAAAIAAAADAAAABAAAAAUAAAAGAAAABwAAAAgAAAAJAAAACgAAAAsAAAAMAAAADQAAAA4AAAAPAAAAEAAAABEAAAASAAAAEwAAABQAAAAVAAAAFgAAABcAAAAYAAAAGQAAABoAAAAbAAAAHAAAAB0AAAAeAAAAHwAAACAAAAAhAAAAIgAAACMAAABvEsO/AAAAAG8Swz9vEsO/AAAAAG8Sw79vEsO/qRNQvG8Swz9vEsM/qRNQvG8Swz9vEsO/AAAAAG8Swz9vEsO/qRNQvG8Swz9vEsO/qRNQvG8Swz9vEsO/AAAAAG8Sw79vEsO/qRNQvG8Sw79vEsO/qRNQvG8Sw79vEsM/qRNQvG8Swz9vEsO/qRNQvG8Swz9vEsO/AAAAAG8Swz9vEsM/AAAAAG8Sw79vEsO/AAAAAG8Sw79vEsM/AAAAAG8Swz9vEsO/AAAAAG8Swz9vEsM/qRNQvG8Swz9vEsM/AAAAAG8Swz9vEsM/AAAAAG8Sw79vEsO/AAAAAG8Swz9vEsO/AAAAAG8Sw79vEsM/AAAAAG8Sw79vEsO/qRNQvG8Sw79vEsM/qRNQvG8Sw79vEsM/qRNQvG8Swz9vEsO/qRNQvG8Sw79vEsO/qRNQvG8Sw79vEsM/AAAAAG8Sw79vEsM/qRNQvG8Sw79vEsM/qRNQvG8Sw79vEsM/AAAAAG8Swz9vEsM/qRNQvG8Swz9vEsM/AAAAAG8Sw79vEsM/AAAAAG8Swz9vEsM/qRNQvG8Sw7+XkK+/AAAAAG8Sw7+XkK+/AAAAAJeQr79vEsO/AAAAAJeQr79vEsO/AAAAAG8Sw7+XkK+/AAAAAG8Sw79vEsO/AAAAAJeQr79vEsO/000SQJeQr7+XkK+/000SQJeQr7+XkK+/000SQG8Sw79vEsO/000SQJeQr7+XkK+/000SQG8Sw79vEsO/000SQG8Sw79vEsO/AAAAAJeQr7+XkK+/AAAAAJeQr7+XkK+/000SQJeQr79vEsO/AAAAAJeQr7+XkK+/000SQJeQr79vEsO/000SQJeQr7+XkK+/000SQG8Sw7+XkK+/AAAAAG8Sw79vEsO/AAAAAG8Sw79vEsO/000SQG8Sw7+XkK+/000SQG8Sw79vEsO/AAAAAG8Sw79vEsO/000SQG8Sw79vEsO/AAAAAG8Sw79vEsO/AAAAAJeQr79vEsO/000SQJeQr79vEsO/000SQG8Sw79vEsO/AAAAAJeQr7+XkK+/AAAAAJeQr7+XkK+/AAAAAG8Sw7+XkK+/000SQG8Sw7+XkK+/AAAAAJeQr7+XkK+/000SQG8Sw7+XkK+/000SQJeQr7+XkK+/AAAAAL8OnL2XkK+/AAAAAL8OnD1vEsO/AAAAAL8OnD1vEsO/AAAAAL8OnL2XkK+/AAAAAL8OnL1vEsO/AAAAAL8OnD1vEsO/000SQL8OnD2XkK+/000SQL8OnD2XkK+/000SQL8OnL1vEsO/000SQL8OnD2XkK+/000SQL8OnL1vEsO/000SQL8OnL1vEsO/AAAAAL8OnD2XkK+/AAAAAL8OnD2XkK+/000SQL8OnD1vEsO/AAAAAL8OnD2XkK+/000SQL8OnD1vEsO/000SQL8OnD2XkK+/000SQL8OnL2XkK+/AAAAAL8OnL1vEsO/AAAAAL8OnL1vEsO/000SQL8OnL2XkK+/000SQL8OnL1vEsO/AAAAAL8OnL1vEsO/000SQL8OnL1vEsO/AAAAAL8OnL1vEsO/AAAAAL8OnD1vEsO/000SQL8OnD1vEsO/000SQL8OnL1vEsO/AAAAAL8OnD2XkK+/AAAAAL8OnD2XkK+/AAAAAL8OnL2XkK+/000SQL8OnL2XkK+/AAAAAL8OnD2XkK+/000SQL8OnL2XkK+/000SQL8OnD2XkK+/54wIQJeQr7+XkK+/54wIQL8OnL1vEsO/54wIQL8OnL1vEsO/54wIQJeQr7+XkK+/54wIQJeQr79vEsO/54wIQL8OnL1vEsO/000SQL8OnL2XkK+/000SQL8OnL2XkK+/000SQJeQr79vEsO/000SQL8OnL2XkK+/000SQJeQr79vEsO/000SQJeQr79vEsO/54wIQL8OnL2XkK+/54wIQL8OnL2XkK+/000SQL8OnL1vEsO/54wIQL8OnL2XkK+/000SQL8OnL1vEsO/000SQL8OnL2XkK+/000SQJeQr7+XkK+/54wIQJeQr79vEsO/54wIQJeQr79vEsO/000SQJeQr7+XkK+/000SQJeQr79vEsO/54wIQJeQr79vEsO/000SQJeQr79vEsO/54wIQJeQr79vEsO/54wIQL8OnL1vEsO/000SQL8OnL1vEsO/000SQJeQr79vEsO/54wIQL8OnL2XkK+/54wIQL8OnL2XkK+/54wIQJeQr7+XkK+/000SQJeQr7+XkK+/54wIQL8OnL2XkK+/000SQJeQr7+XkK+/000SQL8OnL1vEsM/AAAAAG8Sw79vEsM/AAAAAJeQr7+XkK8/AAAAAJeQr7+XkK8/AAAAAG8Sw79vEsM/AAAAAG8Sw7+XkK8/AAAAAJeQr7+XkK8/000SQJeQr79vEsM/000SQJeQr79vEsM/000SQG8Sw7+XkK8/000SQJeQr79vEsM/000SQG8Sw7+XkK8/000SQG8Sw7+XkK8/AAAAAJeQr79vEsM/AAAAAJeQr79vEsM/000SQJeQr7+XkK8/AAAAAJeQr79vEsM/000SQJeQr7+XkK8/000SQJeQr79vEsM/000SQG8Sw79vEsM/AAAAAG8Sw7+XkK8/AAAAAG8Sw7+XkK8/000SQG8Sw79vEsM/000SQG8Sw7+XkK8/AAAAAG8Sw7+XkK8/000SQG8Sw7+XkK8/AAAAAG8Sw7+XkK8/AAAAAJeQr7+XkK8/000SQJeQr7+XkK8/000SQG8Sw7+XkK8/AAAAAJeQr79vEsM/AAAAAJeQr79vEsM/AAAAAG8Sw79vEsM/000SQG8Sw79vEsM/AAAAAJeQr79vEsM/000SQG8Sw79vEsM/000SQJeQr79vEsM/AAAAAL8OnL1vEsM/AAAAAL8OnD2XkK8/AAAAAL8OnD2XkK8/AAAAAL8OnL1vEsM/AAAAAL8OnL2XkK8/AAAAAL8OnD2XkK8/000SQL8OnD1vEsM/000SQL8OnD1vEsM/000SQL8OnL2XkK8/000SQL8OnD1vEsM/000SQL8OnL2XkK8/000SQL8OnL2XkK8/AAAAAL8OnD1vEsM/AAAAAL8OnD1vEsM/000SQL8OnD2XkK8/AAAAAL8OnD1vEsM/000SQL8OnD2XkK8/000SQL8OnD1vEsM/000SQL8OnL1vEsM/AAAAAL8OnL2XkK8/AAAAAL8OnL2XkK8/000SQL8OnL1vEsM/000SQL8OnL2XkK8/AAAAAL8OnL2XkK8/000SQL8OnL2XkK8/AAAAAL8OnL2XkK8/AAAAAL8OnD2XkK8/000SQL8OnD2XkK8/000SQL8OnL2XkK8/AAAAAL8OnD1vEsM/AAAAAL8OnD1vEsM/AAAAAL8OnL1vEsM/000SQL8OnL1vEsM/AAAAAL8OnD1vEsM/000SQL8OnL1vEsM/000SQL8OnD1vEsM/54wIQJeQr79vEsM/54wIQL8OnL2XkK8/54wIQL8OnL2XkK8/54wIQJeQr79vEsM/54wIQJeQr7+XkK8/54wIQL8OnL2XkK8/000SQL8OnL1vEsM/000SQL8OnL1vEsM/000SQJeQr7+XkK8/000SQL8OnL1vEsM/000SQJeQr7+XkK8/000SQJeQr7+XkK8/54wIQL8OnL1vEsM/54wIQL8OnL1vEsM/000SQL8OnL2XkK8/54wIQL8OnL1vEsM/000SQL8OnL2XkK8/000SQL8OnL1vEsM/000SQJeQr79vEsM/54wIQJeQr7+XkK8/54wIQJeQr7+XkK8/000SQJeQr79vEsM/000SQJeQr7+XkK8/54wIQJeQr7+XkK8/000SQJeQr7+XkK8/54wIQJeQr7+XkK8/54wIQL8OnL2XkK8/000SQL8OnL2XkK8/000SQJeQr7+XkK8/54wIQL8OnL1vEsM/54wIQL8OnL1vEsM/54wIQJeQr79vEsM/000SQJeQr79vEsM/54wIQL8OnL1vEsM/000SQJeQr79vEsM/000SQL8OnL2XkK8/54wIQL8OnL+XkK8/54wIQOeMiL+XkK+/54wIQOeMiL+XkK+/54wIQL8OnL+XkK8/54wIQL8OnL+XkK+/54wIQOeMiL+XkK+/000SQOeMiL+XkK8/000SQOeMiL+XkK8/000SQL8OnL+XkK+/000SQOeMiL+XkK8/000SQL8OnL+XkK+/000SQL8OnL+XkK+/54wIQOeMiL+XkK8/54wIQOeMiL+XkK8/000SQOeMiL+XkK+/54wIQOeMiL+XkK8/000SQOeMiL+XkK+/000SQOeMiL+XkK8/000SQL8OnL+XkK8/54wIQL8OnL+XkK+/54wIQL8OnL+XkK+/000SQL8OnL+XkK8/000SQL8OnL+XkK+/54wIQL8OnL+XkK+/000SQL8OnL+XkK+/54wIQL8OnL+XkK+/54wIQOeMiL+XkK+/000SQOeMiL+XkK+/000SQL8OnL+XkK+/54wIQOeMiL+XkK8/54wIQOeMiL+XkK8/54wIQL8OnL+XkK8/000SQL8OnL+XkK8/54wIQOeMiL+XkK8/000SQL8OnL+XkK8/000SQOeMiL8AAAAAAQAAAAIAAAADAAAABAAAAAUAAAAGAAAABwAAAAgAAAAJAAAACgAAAAsAAAAMAAAADQAAAA4AAAAPAAAAEAAAABEAAAASAAAAEwAAABQAAAAVAAAAFgAAABcAAAAYAAAAGQAAABoAAAAbAAAAHAAAAB0AAAAeAAAAHwAAACAAAAAhAAAAIgAAACMAAAAkAAAAJQAAACYAAAAnAAAAKAAAACkAAAAqAAAAKwAAACwAAAAtAAAALgAAAC8AAAAwAAAAMQAAADIAAAAzAAAANAAAADUAAAA2AAAANwAAADgAAAA5AAAAOgAAADsAAAA8AAAAPQAAAD4AAAA/AAAAQAAAAEEAAABCAAAAQwAAAEQAAABFAAAARgAAAEcAAABPPy0/vw4cQKkT0L1xrIM/vw4cQL8OnL5xrIO/vw4cQL8OnL5PPy2/vw4cQKkT0L1PPy0/vw4cQKkT0L1xrIO/vw4cQL8OnL590nC/+u0TQEoMgr590nA/+u0TQEoMgr5PPy0/+u0TQKkT0L190nC/+u0TQEoMgr5PPy0/+u0TQKkT0L1PPy2/+u0TQKkT0L1xrIO/vw4cQL8OnL5xrIM/vw4cQL8OnL590nA/+u0TQEoMgr5xrIO/vw4cQL8OnL590nA/+u0TQEoMgr590nC/+u0TQEoMgr5PPy0/+u0TQKkT0L1PPy0/vw4cQKkT0L1PPy2/vw4cQKkT0L1PPy2/+u0TQKkT0L1PPy0/+u0TQKkT0L1PPy2/vw4cQKkT0L0AAAAAvw4cQCIIiT8AAAAAvw4cQAwNvT9xrIM/vw4cQL8OnL5PPy0/vw4cQKkT0L0AAAAAvw4cQCIIiT9xrIM/vw4cQL8OnL590nA/+u0TQEoMgr4AAAAA+u0TQNELsD8AAAAA+u0TQCIIiT990nA/+u0TQEoMgr4AAAAA+u0TQCIIiT9PPy0/+u0TQKkT0L1xrIM/vw4cQL8OnL4AAAAAvw4cQAwNvT8AAAAA+u0TQNELsD9xrIM/vw4cQL8OnL4AAAAA+u0TQNELsD990nA/+u0TQEoMgr4AAAAA+u0TQCIIiT8AAAAAvw4cQCIIiT9PPy0/vw4cQKkT0L1PPy0/+u0TQKkT0L0AAAAA+u0TQCIIiT9PPy0/vw4cQKkT0L1PPy2/vw4cQKkT0L1xrIO/vw4cQL8OnL4AAAAAvw4cQAwNvT8AAAAAvw4cQCIIiT9PPy2/vw4cQKkT0L0AAAAAvw4cQAwNvT8AAAAA+u0TQNELsD990nC/+u0TQEoMgr5PPy2/+u0TQKkT0L0AAAAA+u0TQNELsD9PPy2/+u0TQKkT0L0AAAAA+u0TQCIIiT8AAAAAvw4cQAwNvT9xrIO/vw4cQL8OnL590nC/+u0TQEoMgr4AAAAAvw4cQAwNvT990nC/+u0TQEoMgr4AAAAA+u0TQNELsD9PPy2/+u0TQKkT0L1PPy2/vw4cQKkT0L0AAAAAvw4cQCIIiT8AAAAA+u0TQCIIiT9PPy2/+u0TQKkT0L0AAAAAvw4cQCIIiT+DUTm/AAAAAB4War6DUTm/AAAAAKkT0L2V1Fm/AAAAAKkT0L2V1Fm/AAAAAB4War6DUTm/AAAAAB4War6V1Fm/AAAAAKkT0L2V1Fm/+u0TQKkT0L2DUTm/+u0TQKkT0L2DUTm/+u0TQB4War6V1Fm/+u0TQKkT0L2DUTm/+u0TQB4War6V1Fm/+u0TQB4War6V1Fm/AAAAAKkT0L2DUTm/AAAAAKkT0L2DUTm/+u0TQKkT0L2V1Fm/AAAAAKkT0L2DUTm/+u0TQKkT0L2V1Fm/+u0TQKkT0L2DUTm/+u0TQB4War6DUTm/AAAAAB4War6V1Fm/AAAAAB4War6V1Fm/+u0TQB4War6DUTm/+u0TQB4War6V1Fm/AAAAAB4War6V1Fm/+u0TQB4War6V1Fm/AAAAAB4War6V1Fm/AAAAAKkT0L2V1Fm/+u0TQKkT0L2V1Fm/+u0TQB4War6V1Fm/AAAAAKkT0L2DUTm/AAAAAKkT0L2DUTm/AAAAAB4War6DUTm/+u0TQB4War6DUTm/AAAAAKkT0L2DUTm/+u0TQB4War6DUTm/+u0TQKkT0L2V1Fk/AAAAAB4War6V1Fk/AAAAAKkT0L2DUTk/AAAAAKkT0L2DUTk/AAAAAB4War6V1Fk/AAAAAB4War6DUTk/AAAAAKkT0L2DUTk/+u0TQKkT0L2V1Fk/+u0TQKkT0L2V1Fk/+u0TQB4War6DUTk/+u0TQKkT0L2V1Fk/+u0TQB4War6DUTk/+u0TQB4War6DUTk/AAAAAKkT0L2V1Fk/AAAAAKkT0L2V1Fk/+u0TQKkT0L2DUTk/AAAAAKkT0L2V1Fk/+u0TQKkT0L2DUTk/+u0TQKkT0L2V1Fk/+u0TQB4War6V1Fk/AAAAAB4War6DUTk/AAAAAB4War6DUTk/+u0TQB4War6V1Fk/+u0TQB4War6DUTk/AAAAAB4War6DUTk/+u0TQB4War6DUTk/AAAAAB4War6DUTk/AAAAAKkT0L2DUTk/+u0TQKkT0L2DUTk/+u0TQB4War6DUTk/AAAAAKkT0L2V1Fk/AAAAAKkT0L2V1Fk/AAAAAB4War6V1Fk/+u0TQB4War6V1Fk/AAAAAKkT0L2V1Fk/+u0TQB4War6V1Fk/+u0TQKkT0L1KDII9AAAAAKytkD9KDII9AAAAADXvoD9KDIK9AAAAADXvoD9KDIK9AAAAAKytkD9KDII9AAAAAKytkD9KDIK9AAAAADXvoD9KDIK9+u0TQDXvoD9KDII9+u0TQDXvoD9KDII9+u0TQKytkD9KDIK9+u0TQDXvoD9KDII9+u0TQKytkD9KDIK9+u0TQKytkD9KDIK9AAAAADXvoD9KDII9AAAAADXvoD9KDII9+u0TQDXvoD9KDIK9AAAAADXvoD9KDII9+u0TQDXvoD9KDIK9+u0TQDXvoD9KDII9+u0TQKytkD9KDII9AAAAAKytkD9KDIK9AAAAAKytkD9KDIK9+u0TQKytkD9KDII9+u0TQKytkD9KDIK9AAAAAKytkD9KDIK9+u0TQKytkD9KDIK9AAAAAKytkD9KDIK9AAAAADXvoD9KDIK9+u0TQDXvoD9KDIK9+u0TQKytkD9KDIK9AAAAADXvoD9KDII9AAAAADXvoD9KDII9AAAAAKytkD9KDII9+u0TQKytkD9KDII9AAAAADXvoD9KDII9+u0TQKytkD9KDII9+u0TQDXvoD8=";
+  var canvas = document.getElementById("view");
+  var stage = canvas.parentElement;
+  var hint = document.getElementById("hint");
+
+  if (!window.THREE || !THREE.GLTFLoader || !THREE.OrbitControls) {
+    hint.textContent = "The 3D viewer couldn't load. Check your internet connection and reload the page.";
+    return;
+  }
+
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(35, 1, 0.05, 100);
+  var controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = !reduceMotion;
+  controls.dampingFactor = 0.08;
+  controls.maxPolarAngle = Math.PI * 0.495;
+  controls.minDistance = 1.5;
+  controls.maxDistance = 20;
+  controls.autoRotateSpeed = 1.2;
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a9199, 0.75));
+  var sun = new THREE.DirectionalLight(0xffffff, 0.85);
+  sun.position.set(3, 6, 4);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  var sc = sun.shadow.camera;
+  sc.left = -3; sc.right = 3; sc.top = 3; sc.bottom = -3; sc.near = 1; sc.far = 15;
+  sun.shadow.bias = -0.0005;
+  scene.add(sun);
+
+  var edgeMat = new THREE.LineBasicMaterial({ color: 0x1b1f24 });
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function applyTheme() {
+    scene.background = new THREE.Color(cssVar("--scene") || "#dde2e7");
+    edgeMat.color.set(cssVar("--edge") || "#1b1f24");
+    render();
+  }
+
+  // Booth: 10' = 3.048 m, floor centre at origin, front (aisle) toward +Z.
+  var TARGET = new THREE.Vector3(0, 1.05, 0);
+  var VIEWS = {
+    iso:   new THREE.Vector3(5.2, 3.9, 6.2),
+    front: new THREE.Vector3(0, 1.3, 8.2),
+    side:  new THREE.Vector3(8.2, 1.3, 0),
+    top:   new THREE.Vector3(0, 9.0, 0.001)
+  };
+  var anim = null;
+  function setView(name, instant) {
+    document.querySelectorAll("[data-view]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.view === name));
+    });
+    // pull the camera back on tall/narrow screens so the whole booth fits
+    var fit = Math.max(1, 0.95 / Math.max(camera.aspect, 0.01));
+    var from = camera.position.clone(), to = VIEWS[name].clone().sub(TARGET).multiplyScalar(fit).add(TARGET);
+    var fromT = controls.target.clone();
+    if (instant || reduceMotion) {
+      camera.position.copy(to); controls.target.copy(TARGET); controls.update(); render(); return;
+    }
+    var t0 = performance.now(), dur = 650;
+    anim = function (now) {
+      var k = Math.min(1, (now - t0) / dur), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      camera.position.lerpVectors(from, to, e);
+      controls.target.lerpVectors(fromT, TARGET, e);
+      if (k >= 1) anim = null;
+    };
+  }
+  document.querySelectorAll("[data-view]").forEach(function (b) {
+    b.addEventListener("click", function () { setView(b.dataset.view); });
+  });
+  var spinBtn = document.getElementById("spin");
+  spinBtn.addEventListener("click", function () {
+    controls.autoRotate = !controls.autoRotate;
+    spinBtn.setAttribute("aria-pressed", String(controls.autoRotate));
+  });
+
+  function resize() {
+    var w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    render();
+  }
+  function render() { renderer.render(scene, camera); }
+
+  var bytes = Uint8Array.from(atob(GLB_BASE64), function (c) { return c.charCodeAt(0); });
+  new THREE.GLTFLoader().parse(bytes.buffer, "", function (gltf) {
+    gltf.scene.traverse(function (o) {
+      if (!o.isMesh) return;
+      var isCarpet = /carpet/i.test(o.name);
+      o.castShadow = !isCarpet;
+      o.receiveShadow = true;
+      o.material.side = THREE.FrontSide;
+      o.add(new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 30), edgeMat));
+    });
+    scene.add(gltf.scene);
+    resize();
+    setView("iso", true);
+    applyTheme();
+    document.documentElement.dataset.modelReady = "1";
+  }, function (err) {
+    hint.textContent = "The booth model couldn't be read (" + (err && err.message || "unknown error") + ").";
+  });
+
+  new ResizeObserver(resize).observe(stage);
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  (function loop(now) {
+    if (anim) anim(now);
+    controls.update();
+    render();
+    requestAnimationFrame(loop);
+  })(performance.now());
+})();
+</script>
+
+</body>
+</html>
